@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Upload Files — DataDealer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-cloud-upload me-2"></i>Upload Files</h1>
+    <p class="text-muted mb-0">Upload and tag fund documents for automatic retrieval.</p>
+</div>
+
+<div class="row g-4">
+
+    <!-- ── Upload form (left column) ── -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-file-earmark-plus me-2"></i>Upload New File
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('dashboard.upload_post') }}"
+                      enctype="multipart/form-data">
+
+                    <!-- File picker -->
+                    <div class="mb-3">
+                        <label for="file" class="form-label fw-medium">
+                            File <span class="text-danger">*</span>
+                        </label>
+                        <input type="file" id="file" name="file" class="form-control"
+                               accept=".pdf,.xlsx,.xls,.csv,.docx,.pptx" required>
+                        <div class="form-text">
+                            Supported: PDF, Excel (.xlsx/.xls), CSV, Word, PowerPoint — max 50MB
+                        </div>
+                    </div>
+
+                    <!-- Fund name -->
+                    <div class="mb-3">
+                        <label for="fund_name" class="form-label fw-medium">
+                            Fund Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" id="fund_name" name="fund_name" class="form-control"
+                               placeholder="e.g. Flagship Fund, Horizon Credit" required>
+                    </div>
+
+                    <!-- Vehicle name -->
+                    <div class="mb-3">
+                        <label for="vehicle_name" class="form-label fw-medium">
+                            Vehicle / Share Class
+                        </label>
+                        <input type="text" id="vehicle_name" name="vehicle_name" class="form-control"
+                               placeholder="e.g. LP, Offshore, Class A, UCITS">
+                        <div class="form-text">Leave blank if not applicable.</div>
+                    </div>
+
+                    <!-- Data type -->
+                    <div class="mb-3">
+                        <label for="data_type" class="form-label fw-medium">
+                            Data Type <span class="text-danger">*</span>
+                        </label>
+                        <select id="data_type" name="data_type" class="form-select" required>
+                            <option value="" disabled selected>Select a type…</option>
+                            <option value="monthly_returns">Monthly Returns</option>
+                            <option value="quarterly_returns">Quarterly Returns</option>
+                            <option value="annual_returns">Annual Returns</option>
+                            <option value="fee_schedule">Fee Schedule</option>
+                            <option value="factsheet">Factsheet</option>
+                            <option value="aum_data">AUM Data</option>
+                            <option value="attribution_report">Attribution Report</option>
+                            <option value="risk_report">Risk Report</option>
+                            <option value="portfolio_holdings">Portfolio Holdings</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Time period -->
+                    <div class="mb-3">
+                        <label for="time_period" class="form-label fw-medium">Time Period</label>
+                        <input type="text" id="time_period" name="time_period" class="form-control"
+                               placeholder="e.g. Q3 2024, December 2023, YTD 2024">
+                        <div class="form-text">Leave blank for non-period-specific files (e.g. fee schedules).</div>
+                    </div>
+
+                    <!-- Description (boosts search accuracy) -->
+                    <div class="mb-4">
+                        <label for="description" class="form-label fw-medium">
+                            Description
+                        </label>
+                        <textarea id="description" name="description" class="form-control" rows="3"
+                                  placeholder="Describe the file in plain English — more detail = better search matching.&#10;e.g. Monthly net returns for Flagship Fund LP from January through September 2024."></textarea>
+                        <div class="form-text">
+                            <i class="bi bi-lightbulb me-1"></i>
+                            Tip: a good description is the most important factor for accurate search matching.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload me-2"></i>Upload &amp; Index File
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── File library (right column) ── -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-archive me-2"></i>File Library
+                    <span class="badge bg-secondary ms-2">{{ files | length }}</span>
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                {% if files %}
+                    <table class="table table-hover mb-0 align-middle small">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Filename</th>
+                                <th>Fund</th>
+                                <th>Type</th>
+                                <th>Period</th>
+                                <th>Uploaded</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in files %}
+                            <tr>
+                                <td class="ps-3">
+                                    <i class="bi bi-file-earmark me-1 text-muted"></i>
+                                    <span title="{{ f.description or '' }}">{{ f.filename }}</span>
+                                </td>
+                                <td>
+                                    {{ f.fund_name }}
+                                    {% if f.vehicle_name %}
+                                        <br><small class="text-muted">{{ f.vehicle_name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        {{ f.data_type | replace('_', ' ') | title }}
+                                    </span>
+                                </td>
+                                <td class="text-muted">{{ f.time_period or '—' }}</td>
+                                <td class="text-muted">
+                                    {{ f.upload_date[:10] if f.upload_date else '—' }}
+                                </td>
+                                <td>
+                                    <form method="POST"
+                                          action="{{ url_for('dashboard.delete_file', file_id=f.id) }}"
+                                          onsubmit="return confirm('Delete {{ f.filename }}? This cannot be undone.')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"
+                                                title="Delete">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+                        No files uploaded yet. Use the form to add your first document.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

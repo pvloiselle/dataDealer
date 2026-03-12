@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Permissions — DataDealer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-shield-check me-2"></i>Permissions</h1>
+    <p class="text-muted mb-0">
+        Control which consultants can receive automatic responses for which funds.
+        <strong>Only email addresses listed here will be auto-fulfilled.</strong>
+    </p>
+</div>
+
+<div class="row g-4">
+
+    <!-- ── Add permission form (left) ── -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-plus-circle me-2"></i>Add Approval
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('dashboard.add_permission') }}">
+
+                    <div class="mb-3">
+                        <label for="email_address" class="form-label fw-medium">
+                            Consultant Email <span class="text-danger">*</span>
+                        </label>
+                        <input type="email" id="email_address" name="email_address"
+                               class="form-control" placeholder="consultant@firm.com" required>
+                        <div class="form-text">Must match the sender address exactly.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="fund_name" class="form-label fw-medium">
+                            Fund <span class="text-danger">*</span>
+                        </label>
+                        {% if fund_names %}
+                            <!-- Show a dropdown of funds already in the file library -->
+                            <input list="fund_options" id="fund_name" name="fund_name"
+                                   class="form-control" placeholder="Type or select a fund…" required>
+                            <datalist id="fund_options">
+                                {% for fund in fund_names %}
+                                    <option value="{{ fund }}">
+                                {% endfor %}
+                            </datalist>
+                        {% else %}
+                            <input type="text" id="fund_name" name="fund_name"
+                                   class="form-control" placeholder="e.g. Flagship Fund" required>
+                        {% endif %}
+                        <div class="form-text">
+                            Must match the fund name used when uploading files.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="vehicle_name" class="form-label fw-medium">
+                            Vehicle / Share Class
+                        </label>
+                        <input type="text" id="vehicle_name" name="vehicle_name"
+                               class="form-control" placeholder="e.g. LP, Offshore">
+                        <div class="form-text">
+                            Leave blank to approve this consultant for <em>all</em> vehicles
+                            within this fund.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-plus-circle me-2"></i>Add Permission
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Safety notice -->
+        <div class="alert alert-warning border-0 shadow-sm mt-3" role="alert">
+            <h6 class="alert-heading fw-semibold">
+                <i class="bi bi-exclamation-triangle me-2"></i>Safety Reminder
+            </h6>
+            <p class="small mb-0">
+                Consultants <strong>not</strong> on this list will never receive automatic
+                responses. Their requests will always appear in the
+                <a href="{{ url_for('dashboard.review') }}">Review Queue</a>
+                for manual handling.
+            </p>
+        </div>
+    </div>
+
+    <!-- ── Current permissions table (right) ── -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-table me-2"></i>Approved Consultants
+                    <span class="badge bg-secondary ms-2">{{ permissions | length }}</span>
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                {% if permissions %}
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Email Address</th>
+                                <th>Fund</th>
+                                <th>Vehicle</th>
+                                <th>Added</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for perm in permissions %}
+                            <tr>
+                                <td class="ps-3">
+                                    <i class="bi bi-person-check me-1 text-success"></i>
+                                    {{ perm.email_address }}
+                                </td>
+                                <td>{{ perm.fund_name }}</td>
+                                <td>
+                                    {% if perm.vehicle_name %}
+                                        <span class="badge bg-light text-dark border">
+                                            {{ perm.vehicle_name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small">All vehicles</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted small">
+                                    {{ perm.added_date[:10] if perm.added_date else '—' }}
+                                </td>
+                                <td>
+                                    <form method="POST"
+                                          action="{{ url_for('dashboard.remove_permission', perm_id=perm.id) }}"
+                                          onsubmit="return confirm('Remove approval for {{ perm.email_address }}?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"
+                                                title="Remove">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-shield-x fs-1 d-block mb-2 opacity-25"></i>
+                        No consultants approved yet. Add one using the form.
+                        <br>
+                        <small>Until you add approvals, all requests will go to the Review Queue.</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

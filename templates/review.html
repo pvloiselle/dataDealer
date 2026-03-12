@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Review Queue — DataDealer{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start">
+    <div>
+        <h1>
+            <i class="bi bi-flag me-2"></i>Review Queue
+            {% if flagged %}
+                <span class="badge bg-danger ms-2">{{ flagged | length }}</span>
+            {% endif %}
+        </h1>
+        <p class="text-muted mb-0">
+            Requests that could not be auto-fulfilled — either the sender is not approved,
+            or no matching file was found. Handle each one manually below.
+        </p>
+    </div>
+</div>
+
+{% if flagged %}
+    {% for req in flagged %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+            <div>
+                <span class="fw-semibold">
+                    <i class="bi bi-envelope me-2 text-muted"></i>{{ req.sender_email }}
+                </span>
+                <span class="text-muted small ms-3">
+                    {{ req.received_at[:16] | replace('T', ' ') if req.received_at else '' }}
+                </span>
+            </div>
+            <span class="badge bg-danger">Needs Review</span>
+        </div>
+
+        <div class="card-body">
+            <div class="row">
+
+                <!-- Left: request details -->
+                <div class="col-md-7">
+
+                    <!-- Subject line -->
+                    {% if req.subject %}
+                    <p class="mb-2">
+                        <span class="text-muted small fw-medium">Subject:</span><br>
+                        {{ req.subject }}
+                    </p>
+                    {% endif %}
+
+                    <!-- What Claude understood -->
+                    {% if req.parse_summary %}
+                    <div class="alert alert-light border mb-3 py-2 px-3">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-robot me-1"></i>AI parsed this as:
+                        </span><br>
+                        {{ req.parse_summary }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Parsed fields -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-6">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="text-muted small">Fund</div>
+                                <div class="fw-medium">{{ req.parsed_fund or '—' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="text-muted small">Vehicle</div>
+                                <div class="fw-medium">{{ req.parsed_vehicle or '—' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="text-muted small">Data Type</div>
+                                <div class="fw-medium">
+                                    {{ (req.parsed_data_type or '—') | replace('_', ' ') | title }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="text-muted small">Time Period</div>
+                                <div class="fw-medium">{{ req.parsed_period or '—' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Why it was flagged -->
+                    <div class="alert alert-warning border-warning py-2 px-3 mb-2">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <strong>Flagged reason:</strong>
+                        {{ req.flag_reason or 'Unknown reason.' }}
+                    </div>
+
+                    <!-- Email body (collapsible) -->
+                    {% if req.body %}
+                    <div class="mb-0">
+                        <button class="btn btn-sm btn-outline-secondary" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#body-{{ req.id }}">
+                            <i class="bi bi-chevron-down me-1"></i>Show original email
+                        </button>
+                        <div class="collapse mt-2" id="body-{{ req.id }}">
+                            <pre class="border rounded p-3 bg-light small text-wrap">{{ req.body[:2000] }}{% if req.body | length > 2000 %}…{% endif %}</pre>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+
+                <!-- Right: actions -->
+                <div class="col-md-5">
+                    <div class="card border bg-light h-100">
+                        <div class="card-body">
+                            <h6 class="fw-semibold mb-3">Mark as Handled</h6>
+                            <p class="text-muted small mb-3">
+                                After you've dealt with this request manually
+                                (e.g. emailed the consultant directly, or confirmed it's
+                                not actionable), mark it as handled here to remove it
+                                from the queue.
+                            </p>
+
+                            <form method="POST"
+                                  action="{{ url_for('dashboard.mark_handled', request_id=req.id) }}">
+                                <div class="mb-3">
+                                    <label for="notes-{{ req.id }}" class="form-label small fw-medium">
+                                        Notes (optional)
+                                    </label>
+                                    <textarea id="notes-{{ req.id }}" name="notes"
+                                              class="form-control form-control-sm" rows="3"
+                                              placeholder="e.g. Replied manually, sender not authorized, request unclear…"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-check-circle me-2"></i>Mark as Handled
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+{% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5 text-muted">
+            <i class="bi bi-check-all fs-1 d-block mb-2 opacity-25"></i>
+            <h5 class="fw-semibold">Queue is empty</h5>
+            <p class="mb-0">No requests need your attention right now. Check back after new emails arrive.</p>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}

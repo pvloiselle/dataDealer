@@ -1,0 +1,25 @@
+# DataDealer Dependencies
+# Install all of these by running: pip install -r requirements.txt
+
+# --- Web Framework ---
+flask==3.0.3                    # The web server and UI framework
+flask-apscheduler==1.13.1       # Runs the background email polling job
+
+# --- Database ---
+# sqlite3 is built into Python — no install needed
+
+# --- Gmail API ---
+google-api-python-client==2.131.0   # Core Google API client
+google-auth-httplib2==0.2.0         # HTTP transport for Google auth
+google-auth-oauthlib==1.2.0         # OAuth 2.0 login flow for Gmail
+
+# --- Anthropic (Claude AI) ---
+anthropic==0.28.0               # Claude API for email parsing
+
+# --- Semantic Search / Embeddings ---
+sentence-transformers==3.0.1    # Generates text embeddings for file matching
+numpy==1.26.4                   # Math library used for cosine similarity
+
+# --- Utilities ---
+python-dotenv==1.0.1            # Loads .env file for secrets
+werkzeug==3.0.3                 # Used by Flask for file upload handling

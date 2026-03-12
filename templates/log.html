@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Request Log — DataDealer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-journal-text me-2"></i>Request Log</h1>
+    <p class="text-muted mb-0">
+        Complete audit trail of every email received and how it was handled.
+    </p>
+</div>
+
+<!-- ── Status filter tabs ── -->
+<ul class="nav nav-tabs mb-3" id="logTabs">
+    <li class="nav-item">
+        <a class="nav-link active" id="tab-all" href="#" onclick="filterTable('all'); return false;">
+            All <span class="badge bg-secondary ms-1">{{ requests | length }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="filterTable('auto_fulfilled'); return false;">
+            <span class="badge badge-auto_fulfilled me-1">&nbsp;</span>
+            Auto-Fulfilled
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="filterTable('flagged'); return false;">
+            <span class="badge badge-flagged me-1">&nbsp;</span>
+            Flagged
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="filterTable('reviewed'); return false;">
+            <span class="badge badge-reviewed me-1">&nbsp;</span>
+            Reviewed
+        </a>
+    </li>
+</ul>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        {% if requests %}
+            <table class="table table-hover mb-0 align-middle small" id="requestTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">#</th>
+                        <th>Sender</th>
+                        <th>AI Summary</th>
+                        <th>Fund</th>
+                        <th>Status</th>
+                        <th>Matched File</th>
+                        <th>Received</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr class="log-row" data-status="{{ req.status }}">
+                        <td class="ps-3 text-muted">{{ req.id }}</td>
+                        <td>
+                            <span class="text-truncate d-inline-block" style="max-width: 180px;"
+                                  title="{{ req.sender_email }}">
+                                {{ req.sender_email }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-muted" title="{{ req.parse_summary or '' }}">
+                                {{ (req.parse_summary or req.subject or '—') | truncate(60) }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ req.parsed_fund or '—' }}
+                            {% if req.parsed_vehicle %}
+                                <br><small class="text-muted">{{ req.parsed_vehicle }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ req.status }} rounded-pill">
+                                {{ req.status | replace('_', ' ') | title }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if req.matched_filename %}
+                                <i class="bi bi-file-earmark me-1 text-success"></i>
+                                {{ req.matched_filename }}
+                            {% elif req.draft_id %}
+                                <i class="bi bi-envelope me-1 text-primary"></i>
+                                Draft created
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">
+                            {{ req.received_at[:16] | replace('T', ' ') if req.received_at else '—' }}
+                        </td>
+                        <td>
+                            <!-- Expandable detail row trigger -->
+                            <button class="btn btn-sm btn-outline-secondary border-0"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#detail-{{ req.id }}"
+                                    title="Show details">
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Expanded detail row -->
+                    <tr class="log-row" data-status="{{ req.status }}">
+                        <td colspan="8" class="p-0 border-0">
+                            <div class="collapse" id="detail-{{ req.id }}">
+                                <div class="bg-light border-top border-bottom p-3">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <strong class="d-block text-muted small mb-1">Email Subject</strong>
+                                            {{ req.subject or '—' }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <strong class="d-block text-muted small mb-1">Flag Reason</strong>
+                                            {{ req.flag_reason or '—' }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <strong class="d-block text-muted small mb-1">Admin Notes</strong>
+                                            {{ req.notes or '—' }}
+                                        </div>
+                                        {% if req.draft_id %}
+                                        <div class="col-12">
+                                            <strong class="d-block text-muted small mb-1">Gmail Draft ID</strong>
+                                            <code>{{ req.draft_id }}</code>
+                                            <span class="text-muted small ms-2">
+                                                (open Gmail to find and send this draft)
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+                No requests logged yet. Requests will appear here as emails arrive.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    /**
+     * Filter the log table by request status.
+     * Called when the tab buttons are clicked.
+     */
+    function filterTable(status) {
+        // Update active tab styling
+        document.querySelectorAll('#logTabs .nav-link').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        // Show/hide rows based on status
+        document.querySelectorAll('.log-row').forEach(row => {
+            if (status === 'all' || row.dataset.status === status) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

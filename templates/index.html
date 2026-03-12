@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — DataDealer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+    <p class="text-muted mb-0">System overview — emails received, processed, and pending review.</p>
+</div>
+
+<!-- ── Summary stat cards ── -->
+<div class="row g-3 mb-4">
+
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-envelope-open fs-4 text-primary me-2"></i>
+                    <span class="text-muted small">Total Requests</span>
+                </div>
+                <div class="stat-number text-primary">{{ total_requests }}</div>
+                <p class="text-muted small mt-1 mb-0">All-time emails received</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-check-circle fs-4 text-success me-2"></i>
+                    <span class="text-muted small">Auto-Fulfilled</span>
+                </div>
+                <div class="stat-number text-success">{{ auto_fulfilled }}</div>
+                <p class="text-muted small mt-1 mb-0">Drafts created, awaiting send</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-flag fs-4 text-danger me-2"></i>
+                    <span class="text-muted small">Needs Review</span>
+                </div>
+                <div class="stat-number text-danger">{{ flagged_pending }}</div>
+                <p class="text-muted small mt-1 mb-0">
+                    {% if flagged_pending > 0 %}
+                        <a href="{{ url_for('dashboard.review') }}">View review queue →</a>
+                    {% else %}
+                        None pending
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-file-earmark fs-4 text-secondary me-2"></i>
+                    <span class="text-muted small">Files Indexed</span>
+                </div>
+                <div class="stat-number text-secondary">{{ total_files }}</div>
+                <p class="text-muted small mt-1 mb-0">
+                    <a href="{{ url_for('dashboard.upload') }}">Manage files →</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Recent activity ── -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-clock-history me-2"></i>Recent Requests
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        {% if recent_requests %}
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Sender</th>
+                        <th>Summary</th>
+                        <th>Status</th>
+                        <th>Received</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in recent_requests %}
+                    <tr>
+                        <td class="ps-3">
+                            <span class="text-truncate d-inline-block" style="max-width: 200px;"
+                                  title="{{ req.sender_email }}">
+                                {{ req.sender_email }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-muted small">
+                                {{ req.parse_summary or req.subject or '(not yet parsed)' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ req.status }} rounded-pill px-2 py-1">
+                                {{ req.status | replace('_', ' ') | title }}
+                            </span>
+                        </td>
+                        <td class="text-muted small">
+                            {{ req.received_at[:16] | replace('T', ' ') if req.received_at else '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+                No requests received yet. DataDealer will start processing emails
+                automatically once it connects to Gmail.
+            </div>
+        {% endif %}
+    </div>
+    {% if recent_requests %}
+    <div class="card-footer bg-white text-end">
+        <a href="{{ url_for('dashboard.log') }}" class="text-decoration-none small">
+            View full log →
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── How it works reminder ── -->
+<div class="alert alert-info mt-4 border-0 shadow-sm" role="alert">
+    <h6 class="alert-heading fw-semibold">
+        <i class="bi bi-info-circle me-2"></i>How DataDealer works
+    </h6>
+    <div class="row small">
+        <div class="col-md-4">
+            <strong>1. Receives email</strong><br>
+            Polls Gmail inbox every {{ 5 }} minutes for new requests from consultants.
+        </div>
+        <div class="col-md-4">
+            <strong>2. Checks permission</strong><br>
+            Verifies the sender is on the approved list for the requested fund.
+        </div>
+        <div class="col-md-4">
+            <strong>3. Creates draft</strong><br>
+            If approved + file found, creates a Gmail draft for you to review and send.
+            Unapproved senders are never auto-fulfilled.
+        </div>
+    </div>
+</div>
+
+{% endblock %}
