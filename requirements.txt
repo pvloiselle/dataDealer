@@ -1,5 +1,6 @@
 # DataDealer Dependencies
 # Install all of these by running: pip install -r requirements.txt
+# Install all of these by running: pip install -r requirements.txt
 
 # --- Web Framework ---
 flask==3.0.3                    # The web server and UI framework
@@ -19,6 +20,12 @@ anthropic==0.28.0               # Claude API for email parsing
 # --- Semantic Search / Embeddings ---
 sentence-transformers==3.0.1    # Generates text embeddings for file matching
 numpy==1.26.4                   # Math library used for cosine similarity
+
+# --- File Analysis ---
+pdfplumber==0.11.0              # Extracts text from PDFs for AI analysis
+
+# --- Production Server ---
+gunicorn==22.0.0                # WSGI server for deployment (use instead of Flask dev server)
 
 # --- Utilities ---
 python-dotenv==1.0.1            # Loads .env file for secrets

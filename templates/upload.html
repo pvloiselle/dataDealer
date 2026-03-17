@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
     <h1><i class="bi bi-cloud-upload me-2"></i>Upload Files</h1>
-    <p class="text-muted mb-0">Upload and tag fund documents for automatic retrieval.</p>
+    <p class="text-muted mb-0">Upload and tag fund documents. Files are organized by Firm → Investment Style → Asset Class → Region → Strategy → Vehicle.</p>
 </div>
 
 <div class="row g-4">
@@ -18,8 +18,29 @@
                 </h6>
             </div>
             <div class="card-body">
+
+                <!-- AI suggestion banner (hidden until AI responds) -->
+                <div id="ai-banner" class="alert alert-info d-none mb-3 py-2 px-3" role="alert"
+                     style="font-size:0.85rem;">
+                    <i class="bi bi-stars me-1"></i>
+                    <strong>AI suggested these fields</strong> based on the file content.
+                    Please review before uploading — especially <strong>Access Level</strong>, which you must set manually.
+                    <button type="button" class="btn-close float-end" style="font-size:0.7rem;"
+                            onclick="document.getElementById('ai-banner').classList.add('d-none')"></button>
+                </div>
+                <div id="ai-loading" class="text-muted d-none mb-3" style="font-size:0.85rem;">
+                    <div class="spinner-border spinner-border-sm me-1" role="status"></div>
+                    Analyzing file with AI…
+                </div>
+                <div id="ai-error" class="alert alert-warning d-none mb-3 py-2 px-3" role="alert"
+                     style="font-size:0.85rem;">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    AI analysis failed — please fill in the fields manually.
+                </div>
+
                 <form method="POST" action="{{ url_for('dashboard.upload_post') }}"
-                      enctype="multipart/form-data">
+                      enctype="multipart/form-data" id="upload-form"
+                      data-prefill="{{ prefill | default({}) | tojson | e }}">
 
                     <!-- File picker -->
                     <div class="mb-3">
@@ -28,28 +49,159 @@
                         </label>
                         <input type="file" id="file" name="file" class="form-control"
                                accept=".pdf,.xlsx,.xls,.csv,.docx,.pptx" required>
+                        <div class="form-text">PDF, Excel, CSV, Word, PowerPoint — max 50MB</div>
+                    </div>
+
+                    <!-- TIER 0: Firm Name (combobox — type freely or pick existing) -->
+                    <div class="mb-3">
+                        <label for="firm_name" class="form-label fw-medium">
+                            Firm Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" id="firm_name" name="firm_name"
+                               class="form-control" list="firm_name_options"
+                               placeholder="e.g. Acme Asset Management" required
+                               autocomplete="off">
+                        <datalist id="firm_name_options">
+                            {% for firm in firm_names %}
+                                <option value="{{ firm }}">
+                            {% endfor %}
+                        </datalist>
                         <div class="form-text">
-                            Supported: PDF, Excel (.xlsx/.xls), CSV, Word, PowerPoint — max 50MB
+                            Type a new firm name or select an existing one.
+                            Must match exactly across all files for the same firm.
                         </div>
                     </div>
 
-                    <!-- Fund name -->
+                    <!-- Investment Style (before Asset Class per priority order) -->
                     <div class="mb-3">
-                        <label for="fund_name" class="form-label fw-medium">
-                            Fund Name <span class="text-danger">*</span>
+                        <label for="investment_style" class="form-label fw-medium">
+                            Investment Style
                         </label>
-                        <input type="text" id="fund_name" name="fund_name" class="form-control"
-                               placeholder="e.g. Flagship Fund, Horizon Credit" required>
+                        <select id="investment_style" name="investment_style" class="form-select">
+                            <option value="Not Applicable" selected>Not Applicable</option>
+                            <option value="Active">Active</option>
+                            <option value="Passive">Passive (Index Tracking)</option>
+                            <option value="Smart Beta / Factor">Smart Beta / Factor</option>
+                        </select>
+                        <div class="form-text">
+                            Relevant for Equity, Fixed Income, and Multi-Asset strategies.
+                            Leave as "Not Applicable" for Alternatives, Real Assets, and Cash.
+                        </div>
                     </div>
 
-                    <!-- Vehicle name -->
+                    <!-- TIER 1: Asset Class -->
                     <div class="mb-3">
-                        <label for="vehicle_name" class="form-label fw-medium">
-                            Vehicle / Share Class
+                        <label for="asset_class" class="form-label fw-medium">
+                            Asset Class <span class="text-danger">*</span>
                         </label>
-                        <input type="text" id="vehicle_name" name="vehicle_name" class="form-control"
-                               placeholder="e.g. LP, Offshore, Class A, UCITS">
-                        <div class="form-text">Leave blank if not applicable.</div>
+                        <select id="asset_class" name="asset_class" class="form-select" required>
+                            <option value="" disabled selected>Select asset class…</option>
+                            <option value="Equity">Equity</option>
+                            <option value="Fixed Income">Fixed Income</option>
+                            <option value="Multi-Asset">Multi-Asset</option>
+                            <option value="Alternatives">Alternatives</option>
+                            <option value="Real Assets">Real Assets</option>
+                            <option value="Cash & Equivalents">Cash &amp; Equivalents</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- TIER 2: Region -->
+                    <div class="mb-3">
+                        <label for="region" class="form-label fw-medium">
+                            Region <span class="text-danger">*</span>
+                        </label>
+                        <select id="region" name="region" class="form-select" required>
+                            <option value="" disabled selected>Select region…</option>
+                            <option value="US">US</option>
+                            <option value="International">International (Developed ex-US)</option>
+                            <option value="Global">Global (US + International)</option>
+                            <option value="Emerging Markets">Emerging Markets</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- TIER 3: Strategy / Fund name -->
+                    <div class="mb-3">
+                        <label for="fund_name" class="form-label fw-medium">
+                            Strategy Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" id="fund_name" name="fund_name" class="form-control"
+                               placeholder="e.g. Large Cap Growth, Unconstrained Bond" required>
+                        <div class="form-text">The specific strategy or fund name.</div>
+                    </div>
+
+                    <!-- TIER 4: Vehicle -->
+                    <div class="mb-3">
+                        <label for="vehicle" class="form-label fw-medium">Vehicle</label>
+                        <select id="vehicle" name="vehicle" class="form-select">
+                            <option value="">Not applicable / leave blank</option>
+                            <option value="Mutual Fund">Mutual Fund</option>
+                            <option value="ETF">ETF</option>
+                            <option value="CIT">CIT (Collective Investment Trust)</option>
+                            <option value="LP">LP (Limited Partnership)</option>
+                            <option value="GP">GP (General Partnership)</option>
+                            <option value="UCITS">UCITS</option>
+                            <option value="Offshore Fund">Offshore Fund</option>
+                            <option value="Separately Managed Account">Separately Managed Account</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- TIER 5: Share Class -->
+                    <div class="mb-3">
+                        <label for="share_class" class="form-label fw-medium">Share Class</label>
+                        <select id="share_class" name="share_class" class="form-select">
+                            <option value="">Not applicable / leave blank</option>
+                            <option value="Class A">Class A</option>
+                            <option value="Class B">Class B</option>
+                            <option value="Class C">Class C</option>
+                            <option value="Class I">Class I (Institutional)</option>
+                            <option value="Class R">Class R (Retirement)</option>
+                            <option value="Class Z">Class Z</option>
+                            <option value="Institutional">Institutional</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Access Level (NEVER pre-filled by AI — always a human decision) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">
+                            Access Level <span class="text-danger">*</span>
+                        </label>
+                        <div class="d-flex gap-2">
+                            <div class="form-check form-check-inline flex-fill m-0">
+                                <input class="form-check-input" type="radio" name="access_level"
+                                       id="access_restricted" value="restricted" checked>
+                                <label class="form-check-label w-100 border rounded p-2 d-block"
+                                       for="access_restricted" id="label_restricted"
+                                       style="cursor:pointer;">
+                                    <span class="fw-semibold text-danger">
+                                        <i class="bi bi-lock me-1"></i>Restricted
+                                    </span><br>
+                                    <small class="text-muted">
+                                        Sender must be on the approved list.
+                                        Use for CITs, LPs, SMAs, and any non-public vehicle.
+                                    </small>
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline flex-fill m-0">
+                                <input class="form-check-input" type="radio" name="access_level"
+                                       id="access_public" value="public">
+                                <label class="form-check-label w-100 border rounded p-2 d-block"
+                                       for="access_public" id="label_public"
+                                       style="cursor:pointer;">
+                                    <span class="fw-semibold text-success">
+                                        <i class="bi bi-unlock me-1"></i>Public
+                                    </span><br>
+                                    <small class="text-muted">
+                                        Anyone may request this. Use for mutual fund
+                                        factsheets, ETF data, and publicly available documents.
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Data type -->
@@ -77,19 +229,48 @@
                         <label for="time_period" class="form-label fw-medium">Time Period</label>
                         <input type="text" id="time_period" name="time_period" class="form-control"
                                placeholder="e.g. Q3 2024, December 2023, YTD 2024">
-                        <div class="form-text">Leave blank for non-period-specific files (e.g. fee schedules).</div>
+                        <div class="form-text">Leave blank for timeless documents (e.g. fee schedules).</div>
                     </div>
 
-                    <!-- Description (boosts search accuracy) -->
+                    <!-- Update Cadence -->
+                    <div class="mb-3">
+                        <label for="update_cadence" class="form-label fw-medium">Update Cadence</label>
+                        <select id="update_cadence" name="update_cadence" class="form-select">
+                            <option value="">Ad-hoc / No schedule</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="annually">Annually</option>
+                        </select>
+                        <div class="form-text">Optional. Used to flag this file as stale when an update is overdue.</div>
+                    </div>
+
+                    <!-- Duplicate / supersede warning (shown by JS if a match is found) -->
+                    <div id="supersede-warning" class="alert alert-warning d-none mb-3 py-2 px-3"
+                         style="font-size:0.85rem;">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <strong>Existing file(s) found with the same firm / fund / data type:</strong>
+                        <ul id="supersede-list" class="mb-2 mt-1"></ul>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="supersede-checkbox"
+                                   name="supersede_file_id" value="">
+                            <label class="form-check-label" for="supersede-checkbox">
+                                Mark the most recent match as superseded by this upload
+                                <small class="text-muted d-block">
+                                    The old file will be hidden from search results and shown
+                                    as "Superseded" in the file library.
+                                </small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
                     <div class="mb-4">
-                        <label for="description" class="form-label fw-medium">
-                            Description
-                        </label>
+                        <label for="description" class="form-label fw-medium">Description</label>
                         <textarea id="description" name="description" class="form-control" rows="3"
-                                  placeholder="Describe the file in plain English — more detail = better search matching.&#10;e.g. Monthly net returns for Flagship Fund LP from January through September 2024."></textarea>
+                                  placeholder="Plain-English description — more detail improves search accuracy.&#10;e.g. Monthly net returns for the US Large Cap Growth LP from Jan–Sep 2024."></textarea>
                         <div class="form-text">
                             <i class="bi bi-lightbulb me-1"></i>
-                            Tip: a good description is the most important factor for accurate search matching.
+                            A good description is the most important factor for accurate matching.
                         </div>
                     </div>
 
@@ -109,6 +290,12 @@
                     <i class="bi bi-archive me-2"></i>File Library
                     <span class="badge bg-secondary ms-2">{{ files | length }}</span>
                 </h6>
+                {% if files | selectattr('superseded_by') | list %}
+                <button class="btn btn-sm btn-outline-secondary" id="toggle-superseded"
+                        onclick="toggleSuperseded()">
+                    <i class="bi bi-eye-slash me-1"></i>Show Superseded
+                </button>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 {% if files %}
@@ -116,24 +303,52 @@
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-3">Filename</th>
-                                <th>Fund</th>
+                                <th>Firm</th>
+                                <th>Asset Class</th>
+                                <th>Region</th>
+                                <th>Strategy</th>
+                                <th>Style</th>
                                 <th>Type</th>
                                 <th>Period</th>
-                                <th>Uploaded</th>
+                                <th>Access</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for f in files %}
-                            <tr>
+                            <tr {% if f.superseded_by %}class="superseded-row d-none" style="opacity:0.6;"{% endif %}>
                                 <td class="ps-3">
                                     <i class="bi bi-file-earmark me-1 text-muted"></i>
-                                    <span title="{{ f.description or '' }}">{{ f.filename }}</span>
+                                    <span title="{{ f.description or '' }}"
+                                          {% if f.superseded_by %}style="text-decoration:line-through;"{% endif %}>
+                                        {{ f.filename }}
+                                    </span>
+                                    {% if f.superseded_by %}
+                                        <br><span class="badge bg-secondary">Superseded</span>
+                                        {% if f.superseded_by_filename %}
+                                            <small class="text-muted">→ replaced by {{ f.superseded_by_filename }}</small>
+                                        {% endif %}
+                                    {% endif %}
                                 </td>
+                                <td>{{ f.firm_name }}</td>
+                                <td>{{ f.asset_class }}</td>
+                                <td>{{ f.region }}</td>
                                 <td>
                                     {{ f.fund_name }}
-                                    {% if f.vehicle_name %}
-                                        <br><small class="text-muted">{{ f.vehicle_name }}</small>
+                                    {% if f.vehicle %}
+                                        <br><small class="text-muted">{{ f.vehicle }}</small>
+                                    {% endif %}
+                                    {% if f.share_class %}
+                                        <br><small class="text-muted">{{ f.share_class }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if f.investment_style and f.investment_style != 'Not Applicable' %}
+                                        <span class="badge bg-light text-dark border">
+                                            {{ f.investment_style }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -142,8 +357,16 @@
                                     </span>
                                 </td>
                                 <td class="text-muted">{{ f.time_period or '—' }}</td>
-                                <td class="text-muted">
-                                    {{ f.upload_date[:10] if f.upload_date else '—' }}
+                                <td>
+                                    {% if f.access_level == 'public' %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-unlock me-1"></i>Public
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-lock me-1"></i>Restricted
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <form method="POST"
@@ -170,4 +393,196 @@
     </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ── Pre-fill from Strategy Browser (query params passed via data-prefill) ─
+    (function () {
+        const form = document.getElementById('upload-form');
+        const prefill = JSON.parse(form.dataset.prefill || '{}');
+        if (!Object.values(prefill).some(v => v)) return; // nothing to fill
+
+        function setInput(id, value) {
+            if (!value) return;
+            document.getElementById(id).value = value;
+        }
+        function setSelect(id, value) {
+            if (!value) return;
+            const el = document.getElementById(id);
+            for (const opt of el.options) {
+                if (opt.value === value) { el.value = value; return; }
+            }
+        }
+
+        setInput('firm_name',   prefill.firm_name);
+        setSelect('investment_style', prefill.investment_style);
+        setSelect('asset_class',      prefill.asset_class);
+        setSelect('region',           prefill.region);
+        setInput('fund_name',   prefill.fund_name);
+        setSelect('vehicle',    prefill.vehicle);
+        setSelect('share_class', prefill.share_class);
+
+        // Show a subtle banner so the user knows fields were pre-filled
+        if (Object.values(prefill).some(v => v)) {
+            const banner = document.getElementById('ai-banner');
+            banner.classList.remove('d-none');
+            banner.innerHTML = '<i class="bi bi-diagram-3 me-1"></i>' +
+                '<strong>Fields pre-filled from Strategy Browser.</strong> ' +
+                'Select a file, set the <strong>Access Level</strong>, and add any remaining details.' +
+                '<button type="button" class="btn-close float-end" style="font-size:0.7rem;" ' +
+                'onclick="this.closest(\'.alert\').classList.add(\'d-none\')"></button>';
+        }
+    })();
+
+    // ── Access level tile highlight ──────────────────────────────────────────
+    function updateAccessTiles() {
+        const restricted = document.getElementById('access_restricted');
+        const pub = document.getElementById('access_public');
+        document.getElementById('label_restricted').style.borderColor = restricted.checked ? '#dc3545' : '#dee2e6';
+        document.getElementById('label_restricted').style.background  = restricted.checked ? '#fff5f5' : '';
+        document.getElementById('label_public').style.borderColor     = pub.checked ? '#198754' : '#dee2e6';
+        document.getElementById('label_public').style.background      = pub.checked ? '#f0fff4' : '';
+    }
+    document.getElementById('access_restricted').addEventListener('change', updateAccessTiles);
+    document.getElementById('access_public').addEventListener('change', updateAccessTiles);
+    updateAccessTiles();
+
+    // ── Supersede toggle ────────────────────────────────────────────────────
+    let _supersededVisible = false;
+    function toggleSuperseded() {
+        _supersededVisible = !_supersededVisible;
+        document.querySelectorAll('.superseded-row').forEach(row => {
+            row.classList.toggle('d-none', !_supersededVisible);
+        });
+        const btn = document.getElementById('toggle-superseded');
+        if (btn) {
+            btn.innerHTML = _supersededVisible
+                ? '<i class="bi bi-eye-slash me-1"></i>Hide Superseded'
+                : '<i class="bi bi-eye me-1"></i>Show Superseded';
+        }
+    }
+
+    // ── Duplicate detection ──────────────────────────────────────────────────
+    let _dupTimer = null;
+    function checkDuplicates() {
+        clearTimeout(_dupTimer);
+        _dupTimer = setTimeout(async function () {
+            const firm      = document.getElementById('firm_name').value.trim();
+            const fund      = document.getElementById('fund_name').value.trim();
+            const dataType  = document.getElementById('data_type').value;
+            const warning   = document.getElementById('supersede-warning');
+            const list      = document.getElementById('supersede-list');
+            const checkbox  = document.getElementById('supersede-checkbox');
+
+            if (!firm && !fund && !dataType) {
+                warning.classList.add('d-none');
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams({ firm, fund, data_type: dataType });
+                const resp = await fetch('/upload/check-duplicate?' + params.toString());
+                if (!resp.ok) return;
+                const matches = await resp.json();
+                if (!matches || matches.length === 0) {
+                    warning.classList.add('d-none');
+                    return;
+                }
+                list.innerHTML = matches.map(m =>
+                    `<li><strong>${m.filename}</strong> — uploaded ${(m.upload_date || '').slice(0,10)}` +
+                    (m.time_period ? ` (${m.time_period})` : '') + `</li>`
+                ).join('');
+                // Set checkbox value to the most recent match (first in DESC order)
+                checkbox.value = matches[0].id;
+                checkbox.checked = false;
+                warning.classList.remove('d-none');
+            } catch (e) {
+                console.error('Duplicate check error:', e);
+            }
+        }, 400);
+    }
+
+    document.getElementById('firm_name').addEventListener('blur', checkDuplicates);
+    document.getElementById('fund_name').addEventListener('blur', checkDuplicates);
+    document.getElementById('data_type').addEventListener('change', checkDuplicates);
+
+    // ── AI-assisted pre-fill ─────────────────────────────────────────────────
+    // When the user picks a file, send it to /upload/analyze and pre-fill
+    // the metadata fields with Claude's suggestions.
+    // Access level is intentionally never touched by this code.
+    document.getElementById('file').addEventListener('change', async function () {
+        const file = this.files[0];
+        if (!file) return;
+
+        const banner  = document.getElementById('ai-banner');
+        const loading = document.getElementById('ai-loading');
+        const errBox  = document.getElementById('ai-error');
+
+        banner.classList.add('d-none');
+        errBox.classList.add('d-none');
+        loading.classList.remove('d-none');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const resp = await fetch('/upload/analyze', {
+                method: 'POST',
+                body: formData
+            });
+
+            loading.classList.add('d-none');
+
+            if (!resp.ok) {
+                errBox.classList.remove('d-none');
+                return;
+            }
+
+            const s = await resp.json();
+            if (!s || Object.keys(s).length === 0) {
+                errBox.classList.remove('d-none');
+                return;
+            }
+
+            // Helper: set a <select> value if the option exists
+            function setSelect(id, value) {
+                if (!value) return;
+                const el = document.getElementById(id);
+                for (const opt of el.options) {
+                    if (opt.value === value) {
+                        el.value = value;
+                        return;
+                    }
+                }
+                // Value not in list — skip silently
+            }
+
+            // Helper: set a text input only if currently empty
+            function setIfEmpty(id, value) {
+                if (!value) return;
+                const el = document.getElementById(id);
+                if (!el.value.trim()) el.value = value;
+            }
+
+            if (s.firm_name)        setIfEmpty('firm_name', s.firm_name);
+            if (s.investment_style) setSelect('investment_style', s.investment_style);
+            if (s.asset_class)      setSelect('asset_class', s.asset_class);
+            if (s.region)           setSelect('region', s.region);
+            if (s.fund_name)        setIfEmpty('fund_name', s.fund_name);
+            if (s.vehicle)          setSelect('vehicle', s.vehicle);
+            if (s.share_class)      setSelect('share_class', s.share_class);
+            if (s.data_type)        setSelect('data_type', s.data_type);
+            if (s.time_period)      setIfEmpty('time_period', s.time_period);
+            if (s.description)      setIfEmpty('description', s.description);
+
+            banner.classList.remove('d-none');
+
+        } catch (err) {
+            loading.classList.add('d-none');
+            errBox.classList.remove('d-none');
+            console.error('AI analysis error:', err);
+        }
+    });
+</script>
 {% endblock %}

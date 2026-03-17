@@ -1,0 +1,642 @@
+{% extends "base.html" %}
+{% block title %}Strategies — DataDealer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-diagram-3 me-2"></i>Strategy Browser</h1>
+    <p class="text-muted mb-0">
+        Every strategy ever uploaded — organized by firm, style, asset class, region, and fund.
+        Strategies remain here even after their files are deleted.
+    </p>
+</div>
+
+{% if not tree %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body text-center text-muted py-5">
+        <i class="bi bi-diagram-3 fs-1 d-block mb-2 opacity-25"></i>
+        No strategies yet. Upload a file to register the first strategy.
+    </div>
+</div>
+{% else %}
+
+{% set ns = namespace(id=0) %}
+
+{% for firm, styles in tree.items() %}
+{% set ns.id = ns.id + 1 %}{% set firm_id = "firm-" ~ ns.id %}
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white border-bottom px-3 py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-building text-primary" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ firm_id }}"></i>
+        <strong class="me-auto" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ firm_id }}">{{ firm }}</strong>
+        <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
+                title="Upload a file for {{ firm }}"
+                data-firm="{{ firm }}" data-style="" data-asset-class="" data-region="" data-fund="" data-vehicle="">
+            <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+        </button>
+        <i class="bi bi-chevron-down text-muted" style="font-size:0.8rem; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ firm_id }}"></i>
+    </div>
+    <div class="collapse show" id="{{ firm_id }}">
+        <div class="card-body p-0">
+
+        {% for style, asset_classes in styles.items() %}
+        {% set ns.id = ns.id + 1 %}{% set style_id = "style-" ~ ns.id %}
+        <div class="border-bottom">
+            <div class="px-4 py-2 d-flex align-items-center gap-2 bg-light">
+                <span style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ style_id }}" class="d-flex align-items-center gap-2 flex-grow-1">
+                    {% if style == "Active" %}<i class="bi bi-activity text-success"></i>
+                    {% elif style == "Passive" %}<i class="bi bi-arrow-repeat text-info"></i>
+                    {% elif style == "Smart Beta / Factor" %}<i class="bi bi-sliders text-warning"></i>
+                    {% else %}<i class="bi bi-dash-circle text-muted"></i>{% endif %}
+                    <span class="fw-semibold" style="font-size:0.9rem;">{{ style }}</span>
+                </span>
+                <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
+                        title="Upload a file for {{ firm }} / {{ style }}"
+                        data-firm="{{ firm }}" data-style="{{ style }}" data-asset-class="" data-region="" data-fund="" data-vehicle="">
+                    <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+                </button>
+                <i class="bi bi-chevron-down text-muted" style="font-size:0.75rem; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ style_id }}"></i>
+            </div>
+            <div class="collapse show" id="{{ style_id }}">
+
+            {% for ac, regions in asset_classes.items() %}
+            {% set ns.id = ns.id + 1 %}{% set ac_id = "ac-" ~ ns.id %}
+            <div class="ps-4 border-top">
+                <div class="px-3 py-2 d-flex align-items-center gap-2" style="background:#fafafa;">
+                    <span style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ ac_id }}" class="d-flex align-items-center gap-2 flex-grow-1">
+                        <i class="bi bi-tag text-secondary" style="font-size:0.85rem;"></i>
+                        <span class="text-secondary fw-medium" style="font-size:0.875rem;">{{ ac }}</span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
+                            title="Upload a file for {{ firm }} / {{ ac }}"
+                            data-firm="{{ firm }}" data-style="{{ style }}" data-asset-class="{{ ac }}" data-region="" data-fund="" data-vehicle="">
+                        <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+                    </button>
+                    <i class="bi bi-chevron-down text-muted" style="font-size:0.7rem; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ ac_id }}"></i>
+                </div>
+                <div class="collapse show" id="{{ ac_id }}">
+
+                {% for region, funds in regions.items() %}
+                {% set ns.id = ns.id + 1 %}{% set region_id = "region-" ~ ns.id %}
+                <div class="ps-3 border-top">
+                    <div class="px-3 py-2 d-flex align-items-center gap-2">
+                        <span style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ region_id }}" class="d-flex align-items-center gap-2 flex-grow-1">
+                            <i class="bi bi-globe text-muted" style="font-size:0.8rem;"></i>
+                            <span class="text-muted" style="font-size:0.85rem;">{{ region }}</span>
+                        </span>
+                        <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
+                                title="Upload a file for {{ firm }} / {{ ac }} / {{ region }}"
+                                data-firm="{{ firm }}" data-style="{{ style }}" data-asset-class="{{ ac }}" data-region="{{ region }}" data-fund="" data-vehicle="">
+                            <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+                        </button>
+                        <i class="bi bi-chevron-down text-muted" style="font-size:0.65rem; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ region_id }}"></i>
+                    </div>
+                    <div class="collapse show" id="{{ region_id }}">
+
+                    {% for fund_name, vehicle_entries in funds.items() %}
+                    {% set ns.id = ns.id + 1 %}{% set fund_id = "fund-" ~ ns.id %}
+                    {% set total_files = vehicle_entries | sum(attribute='file_count') %}
+                    {% set acc = namespace(public=false, restricted=false) %}
+                    {% for e in vehicle_entries %}
+                        {% if 'public'     in e.access_levels %}{% set acc.public     = true %}{% endif %}
+                        {% if 'restricted' in e.access_levels %}{% set acc.restricted = true %}{% endif %}
+                    {% endfor %}
+
+                    <div class="ps-4 border-top">
+                        {# Fund header row #}
+                        <div class="px-3 py-2 d-flex align-items-center gap-2">
+                            <span style="cursor:pointer;" class="d-flex align-items-center gap-2 flex-grow-1 min-w-0"
+                                  data-bs-toggle="collapse" data-bs-target="#{{ fund_id }}">
+                                <i class="bi bi-folder2 text-warning" style="font-size:0.85rem; flex-shrink:0;"></i>
+                                <span class="fw-medium text-truncate" style="font-size:0.875rem;">{{ fund_name }}</span>
+                                {% if (firm + '|' + fund_name) in stale_fund_keys %}
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>Stale
+                                </span>
+                                {% endif %}
+                            </span>
+
+                            {# Access badge #}
+                            {% if acc.public and acc.restricted %}
+                                <span class="badge border" style="font-size:0.7rem;color:#856404;background:#fff3cd;border-color:#ffc107!important;white-space:nowrap;">Mixed</span>
+                            {% elif acc.public %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style="font-size:0.7rem;white-space:nowrap;"><i class="bi bi-unlock"></i> Public</span>
+                            {% elif acc.restricted %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size:0.7rem;white-space:nowrap;"><i class="bi bi-lock"></i> Restricted</span>
+                            {% endif %}
+
+                            {# File count #}
+                            <span class="badge bg-light text-muted border" style="font-size:0.7rem;white-space:nowrap;">
+                                {{ total_files }} file{{ 's' if total_files != 1 }}
+                            </span>
+
+                            {# Info / permissions button #}
+                            <button class="btn btn-sm btn-outline-secondary border-0 py-0 px-1 info-btn"
+                                    title="Details &amp; permissions"
+                                    data-firm="{{ firm }}" data-fund="{{ fund_name }}">
+                                <i class="bi bi-info-circle" style="font-size:0.85rem;"></i>
+                            </button>
+
+                            {# Upload button #}
+                            <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
+                                    title="Upload a file for this strategy"
+                                    data-firm="{{ firm }}"
+                                    data-style="{{ style }}"
+                                    data-asset-class="{{ ac }}"
+                                    data-region="{{ region }}"
+                                    data-fund="{{ fund_name }}"
+                                    data-vehicle="">
+                                <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+                            </button>
+                        </div>
+
+                        {# Vehicle sub-rows #}
+                        <div class="collapse" id="{{ fund_id }}">
+                            <div class="pb-2 pt-1 ps-4">
+                            {% set has_vehicle = vehicle_entries | selectattr('vehicle') | list %}
+                            {% if has_vehicle %}
+                                {% for entry in vehicle_entries %}{% if entry.vehicle %}
+                                <div class="d-flex align-items-center gap-2 py-1 px-2 rounded" style="font-size:0.82rem;">
+                                    <i class="bi bi-box text-muted"></i>
+                                    <span class="text-dark">{{ entry.vehicle }}</span>
+                                    {% if entry.share_class %}<span class="text-muted">·</span><span class="text-muted" style="font-size:0.78rem;">{{ entry.share_class }}</span>{% endif %}
+                                    {% if 'public' in entry.access_levels and 'restricted' in entry.access_levels %}
+                                        <span class="badge border ms-1" style="font-size:0.68rem;color:#856404;background:#fff3cd;border-color:#ffc107!important;">Mixed</span>
+                                    {% elif 'public' in entry.access_levels %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 ms-1" style="font-size:0.68rem;"><i class="bi bi-unlock"></i> Public</span>
+                                    {% elif 'restricted' in entry.access_levels %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 ms-1" style="font-size:0.68rem;"><i class="bi bi-lock"></i> Restricted</span>
+                                    {% endif %}
+                                    <span class="ms-auto badge bg-light text-muted border" style="font-size:0.68rem;">{{ entry.file_count }} file{{ 's' if entry.file_count != 1 }}</span>
+                                    <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
+                                            title="Upload for this vehicle"
+                                            data-firm="{{ firm }}"
+                                            data-style="{{ style }}"
+                                            data-asset-class="{{ ac }}"
+                                            data-region="{{ region }}"
+                                            data-fund="{{ fund_name }}"
+                                            data-vehicle="{{ entry.vehicle }}"
+                                            data-share-class="{{ entry.share_class }}">
+                                        <i class="bi bi-upload" style="font-size:0.75rem;"></i>
+                                    </button>
+                                </div>
+                                {% endif %}{% endfor %}
+                            {% else %}
+                                <div class="py-1 px-2 text-muted" style="font-size:0.82rem;"><i class="bi bi-file-earmark me-1"></i>No specific vehicle</div>
+                            {% endif %}
+                            </div>
+                        </div>
+                    </div>{# end fund #}
+                    {% endfor %}
+
+                    </div>
+                </div>{# end region #}
+                {% endfor %}
+
+                </div>
+            </div>{# end asset class #}
+            {% endfor %}
+
+            </div>
+        </div>{# end style #}
+        {% endfor %}
+
+        </div>
+    </div>
+</div>{# end firm #}
+{% endfor %}
+{% endif %}
+
+
+{# ════════════════════════════════════════════════════════════
+   UPLOAD MODAL
+   ════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadModalLabel">
+                    <i class="bi bi-upload me-2"></i>Upload File
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('dashboard.upload_post') }}"
+                      enctype="multipart/form-data" id="modal-upload-form">
+                    <input type="hidden" name="_return_to" value="strategies">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">File <span class="text-danger">*</span></label>
+                        <input type="file" name="file" class="form-control"
+                               accept=".pdf,.xlsx,.xls,.csv,.docx,.pptx" required>
+                        <div class="form-text">PDF, Excel, CSV, Word, PowerPoint — max 50MB</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Firm Name <span class="text-danger">*</span></label>
+                            <input type="text" name="firm_name" id="mu-firm" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Investment Style</label>
+                            <select name="investment_style" id="mu-style" class="form-select">
+                                <option value="Not Applicable">Not Applicable</option>
+                                <option value="Active">Active</option>
+                                <option value="Passive">Passive (Index Tracking)</option>
+                                <option value="Smart Beta / Factor">Smart Beta / Factor</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Asset Class <span class="text-danger">*</span></label>
+                            <select name="asset_class" id="mu-ac" class="form-select" required>
+                                <option value="" disabled selected>Select…</option>
+                                <option>Equity</option><option>Fixed Income</option>
+                                <option>Multi-Asset</option><option>Alternatives</option>
+                                <option>Real Assets</option><option>Cash &amp; Equivalents</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Region <span class="text-danger">*</span></label>
+                            <select name="region" id="mu-region" class="form-select" required>
+                                <option value="" disabled selected>Select…</option>
+                                <option value="US">US</option>
+                                <option value="International">International (Developed ex-US)</option>
+                                <option value="Global">Global (US + International)</option>
+                                <option value="Emerging Markets">Emerging Markets</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Strategy Name <span class="text-danger">*</span></label>
+                            <input type="text" name="fund_name" id="mu-fund" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Vehicle</label>
+                            <select name="vehicle" id="mu-vehicle" class="form-select">
+                                <option value="">Not applicable</option>
+                                <option>Mutual Fund</option><option>ETF</option>
+                                <option>CIT</option><option>LP</option><option>GP</option>
+                                <option>UCITS</option><option>Offshore Fund</option>
+                                <option>Separately Managed Account</option><option>Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Share Class</label>
+                            <select name="share_class" id="mu-shareclass" class="form-select">
+                                <option value="">Not applicable</option>
+                                <option>Class A</option><option>Class B</option><option>Class C</option>
+                                <option>Class I</option><option>Class R</option><option>Class Z</option>
+                                <option>Institutional</option><option>Retail</option><option>Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Data Type <span class="text-danger">*</span></label>
+                            <select name="data_type" id="mu-datatype" class="form-select" required>
+                                <option value="" disabled selected>Select…</option>
+                                <option value="monthly_returns">Monthly Returns</option>
+                                <option value="quarterly_returns">Quarterly Returns</option>
+                                <option value="annual_returns">Annual Returns</option>
+                                <option value="fee_schedule">Fee Schedule</option>
+                                <option value="factsheet">Factsheet</option>
+                                <option value="aum_data">AUM Data</option>
+                                <option value="attribution_report">Attribution Report</option>
+                                <option value="risk_report">Risk Report</option>
+                                <option value="portfolio_holdings">Portfolio Holdings</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-0">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Time Period</label>
+                            <input type="text" name="time_period" id="mu-period" class="form-control"
+                                   placeholder="e.g. Q3 2024, December 2024">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Update Cadence</label>
+                            <select name="update_cadence" id="mu-cadence" class="form-select">
+                                <option value="">Ad-hoc / No schedule</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="annually">Annually</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Access Level <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-2">
+                                <div class="form-check form-check-inline flex-fill m-0">
+                                    <input class="form-check-input" type="radio" name="access_level"
+                                           id="mu-restricted" value="restricted" checked>
+                                    <label class="form-check-label w-100 border rounded p-2 d-block"
+                                           for="mu-restricted" id="mu-label-restricted" style="cursor:pointer;">
+                                        <span class="fw-semibold text-danger"><i class="bi bi-lock me-1"></i>Restricted</span><br>
+                                        <small class="text-muted">Sender must be on approved list.</small>
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline flex-fill m-0">
+                                    <input class="form-check-input" type="radio" name="access_level"
+                                           id="mu-public" value="public">
+                                    <label class="form-check-label w-100 border rounded p-2 d-block"
+                                           for="mu-public" id="mu-label-public" style="cursor:pointer;">
+                                        <span class="fw-semibold text-success"><i class="bi bi-unlock me-1"></i>Public</span><br>
+                                        <small class="text-muted">Anyone may request this.</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Description</label>
+                            <textarea name="description" id="mu-desc" class="form-control" rows="2"
+                                      placeholder="Plain-English description — more detail improves search accuracy."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload me-1"></i>Upload &amp; Index
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{# ════════════════════════════════════════════════════════════
+   INFO / PERMISSIONS MODAL
+   ════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="infoModalLabel">Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="infoModalBody">
+                <div class="text-center text-muted py-4">
+                    <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Upload modal: pre-fill fields from data-* attributes ─────────────────────
+document.querySelectorAll('.upload-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        // Reset every field first so a higher-level button never carries over
+        // values that were set by a previous deeper-level button click.
+        document.getElementById('mu-firm').value        = '';
+        document.getElementById('mu-style').value       = 'Not Applicable';
+        document.getElementById('mu-ac').value          = '';
+        document.getElementById('mu-region').value      = '';
+        document.getElementById('mu-fund').value        = '';
+        document.getElementById('mu-vehicle').value     = '';
+        document.getElementById('mu-shareclass').value  = '';
+        document.getElementById('mu-datatype').value    = '';
+        document.getElementById('mu-period').value      = '';
+        document.getElementById('mu-cadence').value     = '';
+        document.getElementById('mu-desc').value        = '';
+        document.getElementById('mu-restricted').checked = true;
+        updateModalAccessTiles();
+
+        function setVal(id, val) {
+            const el = document.getElementById(id);
+            if (!el || !val) return;
+            el.value = val;
+        }
+        function setSelect(id, val) {
+            if (!val) return;
+            const el = document.getElementById(id);
+            if (!el) return;
+            for (const opt of el.options) {
+                if (opt.value === val || opt.text === val) { el.value = opt.value; return; }
+            }
+        }
+
+        setVal('mu-firm',          this.dataset.firm);
+        setSelect('mu-style',      this.dataset.style);
+        setSelect('mu-ac',         this.dataset.assetClass);
+        setSelect('mu-region',     this.dataset.region);
+        setVal('mu-fund',          this.dataset.fund);
+        setSelect('mu-vehicle',    this.dataset.vehicle);
+        setSelect('mu-shareclass', this.dataset.shareClass);
+
+        // Update the modal title
+        document.getElementById('uploadModalLabel').innerHTML =
+            '<i class="bi bi-upload me-2"></i>Upload — ' + this.dataset.fund;
+
+        // Reset access tiles
+        updateModalAccessTiles();
+
+        const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
+        modal.show();
+    });
+});
+
+// Access level tile highlight in the upload modal
+function updateModalAccessTiles() {
+    const r = document.getElementById('mu-restricted');
+    const p = document.getElementById('mu-public');
+    document.getElementById('mu-label-restricted').style.borderColor = r.checked ? '#dc3545' : '#dee2e6';
+    document.getElementById('mu-label-restricted').style.background  = r.checked ? '#fff5f5' : '';
+    document.getElementById('mu-label-public').style.borderColor     = p.checked ? '#198754' : '#dee2e6';
+    document.getElementById('mu-label-public').style.background      = p.checked ? '#f0fff4' : '';
+}
+document.getElementById('mu-restricted').addEventListener('change', updateModalAccessTiles);
+document.getElementById('mu-public').addEventListener('change', updateModalAccessTiles);
+updateModalAccessTiles();
+
+
+// ── Info / Permissions modal ──────────────────────────────────────────────────
+let _infoFirm = '', _infoFund = '';
+
+document.querySelectorAll('.info-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        _infoFirm = this.dataset.firm;
+        _infoFund = this.dataset.fund;
+        document.getElementById('infoModalLabel').textContent = _infoFund + ' — Details & Permissions';
+        loadInfoModal();
+        new bootstrap.Modal(document.getElementById('infoModal')).show();
+    });
+});
+
+function loadInfoModal() {
+    document.getElementById('infoModalBody').innerHTML =
+        '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Loading…</div>';
+
+    fetch('/strategies/details?firm=' + encodeURIComponent(_infoFirm) +
+                              '&fund=' + encodeURIComponent(_infoFund))
+        .then(r => r.json())
+        .then(data => renderInfoModal(data))
+        .catch(() => {
+            document.getElementById('infoModalBody').innerHTML =
+                '<div class="alert alert-warning">Failed to load details.</div>';
+        });
+}
+
+function renderInfoModal(data) {
+    let html = '';
+
+    // ── Files ──
+    html += '<h6 class="fw-semibold mb-2"><i class="bi bi-file-earmark me-1"></i>Files on Platform</h6>';
+    if (!data.files.length) {
+        html += '<p class="text-muted small mb-3">No files currently uploaded for this fund.</p>';
+    } else {
+        data.files.forEach(f => {
+            const accessClass = f.access_level === 'public' ? 'text-success' : 'text-danger';
+            const accessIcon  = f.access_level === 'public' ? 'bi-unlock' : 'bi-lock';
+            const accessLabel = f.access_level === 'public' ? 'Public' : 'Restricted';
+            const dtype = (f.data_type || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            html += `<div class="border rounded p-2 mb-2" style="font-size:0.85rem;">
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                    <i class="bi bi-file-earmark-text text-muted"></i>
+                    <span class="fw-medium">${esc(f.filename)}</span>
+                    <span class="badge bg-light text-dark border">${dtype}</span>
+                    ${f.time_period ? `<span class="badge bg-light text-muted border">${esc(f.time_period)}</span>` : ''}
+                    <span class="${accessClass} ms-auto"><i class="bi ${accessIcon} me-1"></i>${accessLabel}</span>
+                </div>
+                ${f.description ? `<p class="text-muted mb-0" style="font-size:0.82rem;">${esc(f.description)}</p>` : ''}
+            </div>`;
+        });
+    }
+
+    // ── Permissions ──
+    html += '<hr><h6 class="fw-semibold mb-2"><i class="bi bi-shield-check me-1"></i>Approved Access List</h6>';
+    if (!data.permissions.length) {
+        html += '<p class="text-muted small" id="perm-empty-msg">No approved senders. If the file is <strong>Public</strong>, this list is not required.</p>';
+    } else {
+        html += '<table class="table table-sm table-hover mb-2" style="font-size:0.85rem;" id="perm-table">';
+        html += '<thead class="table-light"><tr><th>Email</th><th>Vehicle</th><th>Share Class</th><th></th></tr></thead><tbody id="perm-tbody">';
+        data.permissions.forEach(p => {
+            html += permRow(p);
+        });
+        html += '</tbody></table>';
+    }
+    if (!data.permissions.length) {
+        html += '<div id="perm-table" style="display:none"><table class="table table-sm table-hover mb-2" style="font-size:0.85rem;"><thead class="table-light"><tr><th>Email</th><th>Vehicle</th><th>Share Class</th><th></th></tr></thead><tbody id="perm-tbody"></tbody></table></div>';
+    }
+
+    // ── Add permission form ──
+    html += `<div class="border rounded p-3 bg-light mt-2">
+        <p class="fw-medium mb-2" style="font-size:0.875rem;"><i class="bi bi-plus-circle me-1"></i>Add Approved Sender</p>
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small mb-1">Email <span class="text-danger">*</span></label>
+                <input type="email" id="perm-email" class="form-control form-control-sm" placeholder="consultant@firm.com">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Vehicle</label>
+                <select id="perm-vehicle" class="form-select form-select-sm">
+                    <option value="">Any</option>
+                    <option>Mutual Fund</option><option>ETF</option><option>CIT</option>
+                    <option>LP</option><option>GP</option><option>UCITS</option>
+                    <option>Offshore Fund</option><option>Separately Managed Account</option><option>Other</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Share Class</label>
+                <select id="perm-shareclass" class="form-select form-select-sm">
+                    <option value="">Any</option>
+                    <option>Class A</option><option>Class B</option><option>Class C</option>
+                    <option>Class I</option><option>Class R</option><option>Class Z</option>
+                    <option>Institutional</option><option>Retail</option><option>Other</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button class="btn btn-primary btn-sm w-100" onclick="addPermission()">Add</button>
+            </div>
+        </div>
+        <div id="perm-msg" class="mt-2" style="font-size:0.82rem;"></div>
+    </div>`;
+
+    document.getElementById('infoModalBody').innerHTML = html;
+}
+
+function permRow(p) {
+    return `<tr id="perm-row-${p.id}">
+        <td>${esc(p.email_address)}</td>
+        <td class="text-muted">${esc(p.vehicle || '—')}</td>
+        <td class="text-muted">${esc(p.share_class || '—')}</td>
+        <td><button class="btn btn-sm btn-outline-danger border-0 py-0 px-1"
+                    title="Remove" onclick="removePermission(${p.id})">
+            <i class="bi bi-trash3"></i></button></td>
+    </tr>`;
+}
+
+function handleAuthRequired() {
+    if (confirm('Admin login required to modify permissions. Go to login page?')) {
+        window.location.href = '/admin/login?next=' + encodeURIComponent(window.location.href);
+    }
+}
+
+function addPermission() {
+    const email = (document.getElementById('perm-email').value || '').trim();
+    const vehicle = document.getElementById('perm-vehicle').value;
+    const shareClass = document.getElementById('perm-shareclass').value;
+    const msg = document.getElementById('perm-msg');
+
+    if (!email) { msg.innerHTML = '<span class="text-danger">Email is required.</span>'; return; }
+
+    fetch('/strategies/permissions/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email, firm: _infoFirm, fund: _infoFund, vehicle, share_class: shareClass })
+    })
+    .then(r => {
+        if (r.status === 403) { handleAuthRequired(); return null; }
+        return r.json();
+    })
+    .then(data => {
+        if (!data) return;
+        if (data.error) { msg.innerHTML = `<span class="text-danger">${esc(data.error)}</span>`; return; }
+        const p = data.permission;
+        // Show table if it was hidden
+        const tbl = document.getElementById('perm-table');
+        const emptyMsg = document.getElementById('perm-empty-msg');
+        if (emptyMsg) emptyMsg.style.display = 'none';
+        if (tbl) tbl.style.display = '';
+        // Add row
+        const tbody = document.getElementById('perm-tbody');
+        if (tbody) tbody.insertAdjacentHTML('beforeend', permRow(p));
+        // Clear form
+        document.getElementById('perm-email').value = '';
+        document.getElementById('perm-vehicle').value = '';
+        document.getElementById('perm-shareclass').value = '';
+        msg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Added.</span>';
+        setTimeout(() => { if (msg) msg.innerHTML = ''; }, 3000);
+    })
+    .catch(() => { msg.innerHTML = '<span class="text-danger">Request failed.</span>'; });
+}
+
+function removePermission(id) {
+    fetch('/strategies/permissions/' + id + '/remove', { method: 'POST' })
+    .then(r => {
+        if (r.status === 403) { handleAuthRequired(); return null; }
+        return r.json();
+    })
+    .then(data => {
+        if (!data) return;
+        if (data.success) {
+            const row = document.getElementById('perm-row-' + id);
+            if (row) row.remove();
+        }
+    })
+    .catch(() => {});
+}
+
+// Utility: HTML-escape for safe insertion
+function esc(str) {
+    return String(str || '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+{% endblock %}

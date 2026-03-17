@@ -33,6 +33,20 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="firm_name" class="form-label fw-medium">Firm</label>
+                        <input type="text" id="firm_name" name="firm_name"
+                               class="form-control" list="firm_name_options"
+                               placeholder="e.g. Acme Asset Management"
+                               autocomplete="off">
+                        <datalist id="firm_name_options">
+                            {% for firm in firm_names %}
+                                <option value="{{ firm }}">
+                            {% endfor %}
+                        </datalist>
+                        <div class="form-text">Leave blank to approve across all firms.</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="fund_name" class="form-label fw-medium">
                             Fund <span class="text-danger">*</span>
                         </label>
@@ -54,16 +68,38 @@
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="vehicle" class="form-label fw-medium">Vehicle</label>
+                        <select id="vehicle" name="vehicle" class="form-select">
+                            <option value="">All vehicles</option>
+                            <option value="Mutual Fund">Mutual Fund</option>
+                            <option value="ETF">ETF</option>
+                            <option value="CIT">CIT (Collective Investment Trust)</option>
+                            <option value="LP">LP (Limited Partnership)</option>
+                            <option value="GP">GP (General Partnership)</option>
+                            <option value="UCITS">UCITS</option>
+                            <option value="Offshore Fund">Offshore Fund</option>
+                            <option value="Separately Managed Account">Separately Managed Account</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <div class="form-text">Leave as "All vehicles" to approve for every vehicle.</div>
+                    </div>
+
                     <div class="mb-4">
-                        <label for="vehicle_name" class="form-label fw-medium">
-                            Vehicle / Share Class
-                        </label>
-                        <input type="text" id="vehicle_name" name="vehicle_name"
-                               class="form-control" placeholder="e.g. LP, Offshore">
-                        <div class="form-text">
-                            Leave blank to approve this consultant for <em>all</em> vehicles
-                            within this fund.
-                        </div>
+                        <label for="share_class" class="form-label fw-medium">Share Class</label>
+                        <select id="share_class" name="share_class" class="form-select">
+                            <option value="">All share classes</option>
+                            <option value="Class A">Class A</option>
+                            <option value="Class B">Class B</option>
+                            <option value="Class C">Class C</option>
+                            <option value="Class I">Class I (Institutional)</option>
+                            <option value="Class R">Class R (Retirement)</option>
+                            <option value="Class Z">Class Z</option>
+                            <option value="Institutional">Institutional</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <div class="form-text">Leave as "All share classes" for a blanket approval.</div>
                     </div>
 
                     <button type="submit" class="btn btn-success w-100">
@@ -102,8 +138,10 @@
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-3">Email Address</th>
+                                <th>Firm</th>
                                 <th>Fund</th>
                                 <th>Vehicle</th>
+                                <th>Share Class</th>
                                 <th>Added</th>
                                 <th></th>
                             </tr>
@@ -115,14 +153,20 @@
                                     <i class="bi bi-person-check me-1 text-success"></i>
                                     {{ perm.email_address }}
                                 </td>
+                                <td>{{ perm.firm_name or '—' }}</td>
                                 <td>{{ perm.fund_name }}</td>
                                 <td>
-                                    {% if perm.vehicle_name %}
-                                        <span class="badge bg-light text-dark border">
-                                            {{ perm.vehicle_name }}
-                                        </span>
+                                    {% if perm.vehicle %}
+                                        <span class="badge bg-light text-dark border">{{ perm.vehicle }}</span>
                                     {% else %}
-                                        <span class="text-muted small">All vehicles</span>
+                                        <span class="text-muted small">All</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if perm.share_class %}
+                                        <span class="badge bg-light text-dark border">{{ perm.share_class }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">All</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-muted small">

@@ -28,10 +28,10 @@
             <div class="card-body">
                 <div class="d-flex align-items-center mb-2">
                     <i class="bi bi-check-circle fs-4 text-success me-2"></i>
-                    <span class="text-muted small">Auto-Fulfilled</span>
+                    <span class="text-muted small">Auto-Sent</span>
                 </div>
                 <div class="stat-number text-success">{{ auto_fulfilled }}</div>
-                <p class="text-muted small mt-1 mb-0">Drafts created, awaiting send</p>
+                <p class="text-muted small mt-1 mb-0">Sent automatically (high confidence)</p>
             </div>
         </div>
     </div>
@@ -40,13 +40,13 @@
         <div class="card stat-card h-100">
             <div class="card-body">
                 <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-flag fs-4 text-danger me-2"></i>
-                    <span class="text-muted small">Needs Review</span>
+                    <i class="bi bi-forward fs-4 text-warning me-2"></i>
+                    <span class="text-muted small">Forwarded</span>
                 </div>
-                <div class="stat-number text-danger">{{ flagged_pending }}</div>
+                <div class="stat-number text-warning">{{ forwarded_count }}</div>
                 <p class="text-muted small mt-1 mb-0">
-                    {% if flagged_pending > 0 %}
-                        <a href="{{ url_for('dashboard.review') }}">View review queue →</a>
+                    {% if forwarded_count > 0 %}
+                        <a href="{{ url_for('dashboard.review') }}">View forwarded →</a>
                     {% else %}
                         None pending
                     {% endif %}
@@ -65,6 +65,25 @@
                 <div class="stat-number text-secondary">{{ total_files }}</div>
                 <p class="text-muted small mt-1 mb-0">
                     <a href="{{ url_for('dashboard.upload') }}">Manage files →</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-exclamation-triangle fs-4 text-warning me-2"></i>
+                    <span class="text-muted small">Needs Update</span>
+                </div>
+                <div class="stat-number text-warning">{{ stale_count }}</div>
+                <p class="text-muted small mt-1 mb-0">
+                    {% if stale_count > 0 %}
+                        <a href="#stale-files">View stale files ↓</a>
+                    {% else %}
+                        All files up to date
+                    {% endif %}
                 </p>
             </div>
         </div>
@@ -133,6 +152,61 @@
     {% endif %}
 </div>
 
+{% if stale_files %}
+<!-- ── Stale Files ── -->
+<div class="card shadow-sm border-0 mt-4" id="stale-files">
+    <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold text-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>Files Needing Update
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3">Filename</th>
+                    <th>Firm</th>
+                    <th>Fund</th>
+                    <th>Cadence</th>
+                    <th>Expected Update</th>
+                    <th>Days Overdue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sf in stale_files %}
+                {% set upload_date = sf.upload_date[:10] if sf.upload_date else '—' %}
+                {% set today = namespace(val='') %}
+                <tr>
+                    <td class="ps-3">
+                        <i class="bi bi-file-earmark-text me-1 text-muted"></i>
+                        {{ sf.filename }}
+                    </td>
+                    <td class="text-muted small">{{ sf.firm_name }}</td>
+                    <td class="text-muted small">{{ sf.fund_name }}</td>
+                    <td>
+                        <span class="badge bg-light text-dark border">
+                            {{ sf.update_cadence | title }}
+                        </span>
+                    </td>
+                    <td class="text-muted small">{{ sf.next_update_date or '—' }}</td>
+                    <td>
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Overdue
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white text-end">
+        <a href="{{ url_for('dashboard.upload') }}" class="text-decoration-none small">
+            Upload updated files →
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <!-- ── How it works reminder ── -->
 <div class="alert alert-info mt-4 border-0 shadow-sm" role="alert">
     <h6 class="alert-heading fw-semibold">
@@ -148,9 +222,9 @@
             Verifies the sender is on the approved list for the requested fund.
         </div>
         <div class="col-md-4">
-            <strong>3. Creates draft</strong><br>
-            If approved + file found, creates a Gmail draft for you to review and send.
-            Unapproved senders are never auto-fulfilled.
+            <strong>3. Routes the request</strong><br>
+            High-confidence matches (approved sender + strong file match) are <strong>sent automatically</strong>.
+            Anything uncertain is <strong>forwarded to the consultant email</strong> with full context.
         </div>
     </div>
 </div>

@@ -20,13 +20,18 @@ GMAIL_INBOX_EMAIL = os.getenv("GMAIL_INBOX_EMAIL")
 GMAIL_CREDENTIALS_FILE = os.getenv("GMAIL_CREDENTIALS_FILE", "credentials/credentials.json")
 GMAIL_TOKEN_FILE = os.getenv("GMAIL_TOKEN_FILE", "credentials/token.json")
 
+# The email address of the human consultant who receives forwarded uncertain requests.
+# All uncertain/unapproved requests will be emailed here with full context.
+CONSULTANT_EMAIL = os.getenv("CONSULTANT_EMAIL")
+
 # OAuth scopes:
 #   - gmail.readonly  → read incoming emails
-#   - gmail.compose   → create drafts (intentionally NOT gmail.send, so nothing auto-sends)
+#   - gmail.send      → send auto-responses for high-confidence matches
+#   - gmail.modify    → mark emails as read
 GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.compose",
-    "https://www.googleapis.com/auth/gmail.modify",  # needed to mark emails as read
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.modify",
 ]
 
 # ── Storage ──────────────────────────────────────────────────────────────────
@@ -37,10 +42,14 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "database/datadealer.db")
 POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "5"))
 
 # ── Semantic Search ──────────────────────────────────────────────────────────
-# Cosine similarity score that a file must exceed to be auto-matched.
-# Range: 0.0 (match anything) to 1.0 (exact match only).
-# 0.65 is a sensible default for this kind of metadata matching.
+# SIMILARITY_THRESHOLD: minimum score for a file to be considered a candidate match at all.
+# Requests below this score are forwarded with "no file found" context.
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.65"))
+
+# HIGH_CONFIDENCE_THRESHOLD: score at which a match is considered confident enough to auto-send.
+# Must also be an approved sender with Claude parse confidence = "high".
+# Raise this to be more conservative; lower it to auto-send more aggressively.
+HIGH_CONFIDENCE_THRESHOLD = float(os.getenv("HIGH_CONFIDENCE_THRESHOLD", "0.82"))
 
 # ── Flask ────────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
@@ -50,3 +59,16 @@ ALLOWED_EXTENSIONS = {"pdf", "xlsx", "xls", "csv", "docx", "pptx"}
 
 # Maximum file size: 50 MB
 MAX_CONTENT_LENGTH = 50 * 1024 * 1024
+
+# Number of grace period days after the expected next update date before marking a file stale
+FRESHNESS_GRACE_PERIOD_DAYS = int(os.getenv("FRESHNESS_GRACE_PERIOD_DAYS", "14"))
+
+# ── Admin Auth ────────────────────────────────────────────────────────────────
+# Password required to perform sensitive admin actions (upload, permissions, config).
+# Set via environment variable. If empty, admin auth is disabled (dev convenience).
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+# ── Notifications ─────────────────────────────────────────────────────────────
+# Email address to notify when a request enters the pending_clarification queue.
+# Leave blank to disable queue notifications.
+NOTIFICATION_EMAIL = os.getenv("NOTIFICATION_EMAIL", "")

@@ -11,6 +11,7 @@ To run the application:
 Then open http://localhost:5001 in your browser.
 """
 
+import base64
 import os
 from flask import Flask
 
@@ -18,6 +19,27 @@ import config
 from modules.database import init_db
 from modules.dashboard import bp as dashboard_blueprint
 from scheduler import init_scheduler
+
+
+def _bootstrap_credentials():
+    """Write credential files from env vars if they don't exist on disk.
+
+    On Railway (and other PaaS platforms), credential files can't be committed
+    to git, so they're stored as base64-encoded environment variables and
+    written to the persistent volume path on first startup.
+    Silent no-op if env vars are absent (preserves local dev behavior).
+    """
+    pairs = [
+        ("GMAIL_TOKEN_JSON",       config.GMAIL_TOKEN_FILE),
+        ("GMAIL_CREDENTIALS_JSON", config.GMAIL_CREDENTIALS_FILE),
+    ]
+    for env_var, file_path in pairs:
+        encoded = os.getenv(env_var)
+        if encoded and not os.path.exists(file_path):
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(encoded))
+            print(f"[Startup] Wrote {file_path} from environment variable.")
 
 
 def create_app():
@@ -36,9 +58,12 @@ def create_app():
     # Required by Flask-APScheduler to avoid duplicate jobs in debug mode
     app.config["SCHEDULER_API_ENABLED"] = False
 
+    # ── Bootstrap credentials from env vars (Railway / cloud deploy) ─────────
+    _bootstrap_credentials()
+
     # ── Ensure required folders exist ────────────────────────────────────────
     os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs("credentials", exist_ok=True)
+    os.makedirs(os.path.dirname(config.GMAIL_TOKEN_FILE), exist_ok=True)
     os.makedirs(os.path.dirname(config.DATABASE_PATH), exist_ok=True)
 
     # ── Initialize the database ───────────────────────────────────────────────

@@ -1,7 +1,6 @@
 # Secrets — never commit these
 .env
-credentials/credentials.json
-credentials/token.json
+credentials/
 
 # Python
 __pycache__/
@@ -20,7 +19,7 @@ venv/
 env/
 
 # Database (contains real data — back up separately)
-database/*.db
+database/
 
 # Uploaded files (large binaries — back up separately)
 uploads/

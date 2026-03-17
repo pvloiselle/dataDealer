@@ -10,6 +10,7 @@ Why tool use instead of plain text prompting?
   a structured object that matches a strict schema — no parsing guesswork needed.
 """
 
+import datetime
 from anthropic import Anthropic
 import config
 
@@ -43,18 +44,49 @@ def parse_email_request(subject: str, body: str) -> dict | None:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "fund_name": {
+                    "firm_name": {
                         "type": "string",
                         "description": (
-                            "The name of the investment fund being requested. "
+                            "The name of the investment management firm (the parent company). "
                             "Return null if not specified or unclear."
                         ),
                     },
-                    "vehicle_name": {
+                    "asset_class": {
                         "type": "string",
                         "description": (
-                            "The specific vehicle, share class, or structure (e.g. 'LP', "
-                            "'Offshore Fund', 'Class A', 'UCITS'). Return null if not specified."
+                            "The asset class of the fund being requested. "
+                            "Return null if not specified or unclear."
+                        ),
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": (
+                            "The geographic region of the fund being requested — "
+                            "e.g. 'US', 'International', 'Global', 'Emerging Markets'. "
+                            "Return null if not specified."
+                        ),
+                    },
+                    "fund_name": {
+                        "type": "string",
+                        "description": (
+                            "The name of the strategy or fund being requested. "
+                            "Return null if not specified or unclear."
+                        ),
+                    },
+                    "vehicle": {
+                        "type": "string",
+                        "description": (
+                            "The legal or structural vehicle wrapper being requested — "
+                            "e.g. 'Mutual Fund', 'LP', 'CIT', 'ETF', 'UCITS', 'Offshore Fund', "
+                            "'Separately Managed Account'. Return null if not specified."
+                        ),
+                    },
+                    "share_class": {
+                        "type": "string",
+                        "description": (
+                            "The specific share class within the vehicle — "
+                            "e.g. 'Class A', 'Class I', 'Class R', 'Institutional', 'Retail'. "
+                            "Return null if not specified."
                         ),
                     },
                     "data_type": {
@@ -79,9 +111,15 @@ def parse_email_request(subject: str, body: str) -> dict | None:
                     "time_period": {
                         "type": "string",
                         "description": (
-                            "The time period the consultant is asking about "
-                            "(e.g. 'Q3 2024', 'YTD 2024', 'last 3 years', 'December 2023'). "
-                            "Return null if not specified."
+                            "The time period the consultant is asking about. "
+                            "ALWAYS include a specific year — never return just 'Q4' or 'March'. "
+                            "If the year is not stated, infer the most recently completed "
+                            "occurrence of that period relative to today's date. "
+                            "For example, if today is March 2026 and the consultant asks for Q4, "
+                            "return 'Q4 2025' (the most recently completed Q4). "
+                            "If they ask for Q1, return 'Q1 2025' (most recently COMPLETED Q1, "
+                            "since Q1 2026 is still in progress). "
+                            "If no period is mentioned at all, return null."
                         ),
                     },
                     "confidence": {
@@ -107,14 +145,25 @@ def parse_email_request(subject: str, body: str) -> dict | None:
         }
     ]
 
-    # Compose the prompt with the email content
+    # Include today's date so Claude can infer years for incomplete time periods
+    today = datetime.date.today()
+    current_quarter = (today.month - 1) // 3 + 1
+    date_context = (
+        f"Today's date is {today.strftime('%B %d, %Y')} (Q{current_quarter} {today.year}). "
+        f"Use this to infer the year when a time period is mentioned without one. "
+        f"Always return the most recently COMPLETED period — for example, if today is in Q1, "
+        f"the most recently completed quarter is Q4 of the previous year."
+    )
+
     prompt = (
         "You are processing an email from an investment consultant who is requesting "
         "fund data from an investment management firm. Analyze the email carefully and "
         "extract the key details about what they are requesting.\n\n"
+        f"{date_context}\n\n"
         f"Email Subject: {subject}\n\n"
         f"Email Body:\n{body}\n\n"
-        "Extract the request details using the provided tool."
+        "Extract the request details using the provided tool. "
+        "Remember: always include a year in the time_period field."
     )
 
     try:
@@ -146,18 +195,25 @@ def parse_email_request(subject: str, body: str) -> dict | None:
 def build_search_query(parsed: dict) -> str:
     """
     Build a plain-text search string from parsed request data.
-    This string is used to generate an embedding for semantic file matching.
+    Includes the full taxonomy so the embedding captures all levels.
 
     Example output:
-        "Flagship Fund LP monthly returns Q3 2024"
+        "Equity US Large Cap Growth LP monthly returns Q3 2024"
     """
     parts = []
+    if parsed.get("firm_name"):
+        parts.append(parsed["firm_name"])
+    if parsed.get("asset_class"):
+        parts.append(parsed["asset_class"])
+    if parsed.get("region"):
+        parts.append(parsed["region"])
     if parsed.get("fund_name"):
         parts.append(parsed["fund_name"])
-    if parsed.get("vehicle_name"):
-        parts.append(parsed["vehicle_name"])
+    if parsed.get("vehicle"):
+        parts.append(parsed["vehicle"])
+    if parsed.get("share_class"):
+        parts.append(parsed["share_class"])
     if parsed.get("data_type"):
-        # Convert underscore format to readable words for better embedding
         parts.append(parsed["data_type"].replace("_", " "))
     if parsed.get("time_period"):
         parts.append(parsed["time_period"])

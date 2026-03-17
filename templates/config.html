@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Config — DataDealer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-gear me-2"></i>Configuration</h1>
+    <p class="text-muted mb-0">Configure CR team regions, assignments, and view known sender profiles.</p>
+</div>
+
+<!-- ── Section 1: CR Regions ── -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-globe me-2"></i>CR Regions
+        </h6>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Define the regions used to route incoming requests to the correct CR team member.
+            Once a sender replies with their region, it is saved permanently and they will never be asked again.
+        </p>
+
+        {% if regions %}
+        <table class="table table-hover table-sm mb-3 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Region Name</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in regions %}
+                <tr>
+                    <td class="fw-medium">{{ r.region_name }}</td>
+                    <td class="text-muted small">{{ r.created_date[:10] if r.created_date else '—' }}</td>
+                    <td>
+                        <form method="POST"
+                              action="{{ url_for('dashboard.config_remove_region', name=r.region_name) }}"
+                              onsubmit="return confirm('Remove region \'{{ r.region_name }}\'? This will also remove all assignments for this region.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger border-0 py-0 px-1"
+                                    title="Remove region">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-muted small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            No regions configured yet. Add a region below to enable CR routing.
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('dashboard.config_add_region') }}"
+              class="d-flex gap-2 align-items-end">
+            <div class="flex-grow-1">
+                <label class="form-label fw-medium small">Add Region</label>
+                <input type="text" name="region_name" class="form-control form-control-sm"
+                       placeholder="e.g. Northeast, West Coast, Midwest" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus me-1"></i>Add
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ── Section 2: CR Team Assignments ── -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-people me-2"></i>CR Team Assignments
+        </h6>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Assign CR team members to each region. When a sender's region is known,
+            the first assigned member for that region will receive the forwarded request.
+        </p>
+
+        {% if assignments %}
+        <table class="table table-hover table-sm mb-3 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Region</th>
+                    <th>Member Name</th>
+                    <th>Member Email</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in assignments %}
+                <tr>
+                    <td>
+                        <span class="badge bg-light text-dark border">{{ a.region_name }}</span>
+                    </td>
+                    <td class="fw-medium">{{ a.member_name }}</td>
+                    <td class="text-muted small">{{ a.member_email }}</td>
+                    <td>
+                        <form method="POST"
+                              action="{{ url_for('dashboard.config_remove_assignment', assignment_id=a.id) }}"
+                              onsubmit="return confirm('Remove {{ a.member_name }} from {{ a.region_name }}?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger border-0 py-0 px-1"
+                                    title="Remove assignment">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-muted small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            No assignments yet.
+        </div>
+        {% endif %}
+
+        {% if regions %}
+        <form method="POST" action="{{ url_for('dashboard.config_add_assignment') }}">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-medium small">Region <span class="text-danger">*</span></label>
+                    <select name="region_name" class="form-select form-select-sm" required>
+                        <option value="" disabled selected>Select region…</option>
+                        {% for r in regions %}
+                        <option value="{{ r.region_name }}">{{ r.region_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-medium small">Member Name <span class="text-danger">*</span></label>
+                    <input type="text" name="member_name" class="form-control form-control-sm"
+                           placeholder="e.g. Jane Smith" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-medium small">Member Email <span class="text-danger">*</span></label>
+                    <input type="email" name="member_email" class="form-control form-control-sm"
+                           placeholder="jane.smith@firm.com" required>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-info py-2 px-3 mb-0" style="font-size:0.875rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            Add at least one region above before assigning team members.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Section 3: Sender Profiles ── -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-person-lines-fill me-2"></i>Known Sender Profiles
+        </h6>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Once a sender replies to the region clarification email, their region is saved here permanently.
+            They will not be asked again on future requests.
+        </p>
+
+        {% if sender_profiles %}
+        <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Email</th>
+                    <th>Region</th>
+                    <th>Date Added</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sp in sender_profiles %}
+                <tr>
+                    <td class="fw-medium">{{ sp.email_address }}</td>
+                    <td>
+                        <span class="badge bg-light text-dark border">{{ sp.region_name }}</span>
+                    </td>
+                    <td class="text-muted small">{{ sp.created_date[:10] if sp.created_date else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-person-x fs-1 d-block mb-2 opacity-25"></i>
+            No sender profiles yet. Profiles are created automatically when senders reply to the region clarification email.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

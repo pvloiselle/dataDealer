@@ -123,11 +123,38 @@
                                         </div>
                                         {% if req.draft_id %}
                                         <div class="col-12">
-                                            <strong class="d-block text-muted small mb-1">Gmail Draft ID</strong>
+                                            <strong class="d-block text-muted small mb-1">Gmail Message ID</strong>
                                             <code>{{ req.draft_id }}</code>
-                                            <span class="text-muted small ms-2">
-                                                (open Gmail to find and send this draft)
-                                            </span>
+                                            <button class="btn btn-sm btn-outline-primary border ms-2"
+                                                    onclick="loadEmailPreview({{ req.id }}, this)">
+                                                <i class="bi bi-envelope-open me-1"></i>View Sent Email
+                                            </button>
+                                        </div>
+                                        <div class="col-12" id="preview-{{ req.id }}" style="display:none;">
+                                            <div class="border rounded p-3 bg-white small">
+                                                <div id="preview-loading-{{ req.id }}" class="text-muted">
+                                                    <div class="spinner-border spinner-border-sm me-1" role="status"></div>
+                                                    Loading…
+                                                </div>
+                                                <div id="preview-content-{{ req.id }}" style="display:none;">
+                                                    <div class="mb-2">
+                                                        <span class="text-muted fw-medium">To:</span>
+                                                        <span id="preview-to-{{ req.id }}"></span>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <span class="text-muted fw-medium">Subject:</span>
+                                                        <span id="preview-subject-{{ req.id }}"></span>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <span class="text-muted fw-medium">Date:</span>
+                                                        <span id="preview-date-{{ req.id }}"></span>
+                                                    </div>
+                                                    <pre id="preview-body-{{ req.id }}"
+                                                         class="border rounded p-2 bg-light text-wrap mt-2"
+                                                         style="max-height:300px;overflow-y:auto;font-size:0.8rem;"></pre>
+                                                </div>
+                                                <div id="preview-error-{{ req.id }}" class="text-danger" style="display:none;"></div>
+                                            </div>
                                         </div>
                                         {% endif %}
                                     </div>
@@ -151,6 +178,12 @@
 
 {% block scripts %}
 <script>
+    function esc(s) {
+        return String(s)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     /**
      * Filter the log table by request status.
      * Called when the tab buttons are clicked.
@@ -170,6 +203,48 @@
                 row.style.display = 'none';
             }
         });
+    }
+
+    async function loadEmailPreview(requestId, btn) {
+        const previewDiv  = document.getElementById('preview-' + requestId);
+        const loadingDiv  = document.getElementById('preview-loading-' + requestId);
+        const contentDiv  = document.getElementById('preview-content-' + requestId);
+        const errorDiv    = document.getElementById('preview-error-' + requestId);
+
+        // Toggle off if already visible
+        if (previewDiv.style.display !== 'none') {
+            previewDiv.style.display = 'none';
+            btn.innerHTML = '<i class="bi bi-envelope-open me-1"></i>View Sent Email';
+            return;
+        }
+
+        previewDiv.style.display = 'block';
+        loadingDiv.style.display = 'block';
+        contentDiv.style.display = 'none';
+        errorDiv.style.display   = 'none';
+        btn.innerHTML = '<i class="bi bi-x me-1"></i>Hide';
+
+        try {
+            const resp = await fetch('/log/' + requestId + '/preview');
+            const data = await resp.json();
+            loadingDiv.style.display = 'none';
+
+            if (data.error) {
+                errorDiv.innerHTML = esc(data.error);
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            document.getElementById('preview-to-' + requestId).textContent      = data.to || '—';
+            document.getElementById('preview-subject-' + requestId).textContent  = data.subject || '—';
+            document.getElementById('preview-date-' + requestId).textContent     = data.date || '—';
+            document.getElementById('preview-body-' + requestId).textContent     = data.body || '(empty)';
+            contentDiv.style.display = 'block';
+        } catch (e) {
+            loadingDiv.style.display = 'none';
+            errorDiv.innerHTML = 'Failed to load preview: ' + esc(String(e));
+            errorDiv.style.display = 'block';
+        }
     }
 </script>
 {% endblock %}

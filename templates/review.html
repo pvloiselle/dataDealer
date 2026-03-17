@@ -5,17 +5,34 @@
 <div class="page-header d-flex justify-content-between align-items-start">
     <div>
         <h1>
-            <i class="bi bi-flag me-2"></i>Review Queue
+            <i class="bi bi-forward me-2"></i>Forwarded Requests
             {% if flagged %}
-                <span class="badge bg-danger ms-2">{{ flagged | length }}</span>
+                <span class="badge bg-warning text-dark ms-2">{{ flagged | length }}</span>
             {% endif %}
         </h1>
         <p class="text-muted mb-0">
-            Requests that could not be auto-fulfilled — either the sender is not approved,
-            or no matching file was found. Handle each one manually below.
+            Requests that were forwarded to the consultant email — sender not approved,
+            uncertain file match, or low AI confidence. These have already been emailed to your
+            consultant; mark them as handled once resolved.
         </p>
     </div>
 </div>
+
+{% if assignees %}
+<div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+    <span class="text-muted small fw-medium">Filter by assignee:</span>
+    <a href="{{ url_for('dashboard.review') }}"
+       class="btn btn-sm {% if not assignee %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+        All
+    </a>
+    {% for a in assignees %}
+    <a href="{{ url_for('dashboard.review', assignee=a) }}"
+       class="btn btn-sm {% if assignee == a %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        {{ a }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
 
 {% if flagged %}
     {% for req in flagged %}
@@ -28,8 +45,15 @@
                 <span class="text-muted small ms-3">
                     {{ req.received_at[:16] | replace('T', ' ') if req.received_at else '' }}
                 </span>
+                {% if req.assigned_to %}
+                <span class="badge bg-info text-dark ms-2">
+                    <i class="bi bi-person me-1"></i>{{ req.assigned_to }}
+                </span>
+                {% endif %}
             </div>
-            <span class="badge bg-danger">Needs Review</span>
+            <span class="badge badge-{{ req.status }} rounded-pill px-2 py-1">
+                {{ req.status | replace('_', ' ') | title }}
+            </span>
         </div>
 
         <div class="card-body">
@@ -135,6 +159,22 @@
                                     <i class="bi bi-check-circle me-2"></i>Mark as Handled
                                 </button>
                             </form>
+
+                            {% if req.status in ('forwarded', 'flagged') %}
+                            <hr class="my-3">
+                            <h6 class="fw-semibold mb-2">Re-process Request</h6>
+                            <p class="text-muted small mb-3">
+                                If a new file has been uploaded since this was forwarded,
+                                re-run matching — the request may now be auto-fulfillable.
+                            </p>
+                            <form method="POST"
+                                  action="{{ url_for('dashboard.reprocess_request', request_id=req.id) }}"
+                                  onsubmit="return confirm('Re-run file matching for this request? If a match is found and all criteria are met, the sender will receive the file automatically.')">
+                                <button type="submit" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-arrow-repeat me-2"></i>Re-process Request
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
