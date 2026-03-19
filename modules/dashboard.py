@@ -230,7 +230,6 @@ def upload_post():
 
 
 @bp.route("/upload/analyze", methods=["POST"])
-@require_admin
 def upload_analyze():
     """
     AI-assisted metadata suggestion endpoint.
