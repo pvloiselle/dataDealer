@@ -40,7 +40,7 @@
 
                 <form method="POST" action="{{ url_for('dashboard.upload_post') }}"
                       enctype="multipart/form-data" id="upload-form"
-                      data-prefill="{{ prefill | default({}) | tojson | e }}">
+                      data-prefill="{{ prefill | default({}) | tojson }}">
 
                     <!-- File picker -->
                     <div class="mb-3">
@@ -400,7 +400,8 @@
     // ── Pre-fill from Strategy Browser (query params passed via data-prefill) ─
     (function () {
         const form = document.getElementById('upload-form');
-        const prefill = JSON.parse(form.dataset.prefill || '{}');
+        let prefill = {};
+        try { prefill = JSON.parse(form.dataset.prefill || '{}'); } catch(e) {}
         if (!Object.values(prefill).some(v => v)) return; // nothing to fill
 
         function setInput(id, value) {
