@@ -176,7 +176,7 @@ def analyze_file_for_metadata(filename: str, file_bytes: bytes) -> dict:
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-haiku-4-5-20251001",
             max_tokens=1024,
             tools=tools,
             tool_choice={"type": "any"},

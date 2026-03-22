@@ -404,11 +404,7 @@
                    class="nav-link {% if request.endpoint == 'dashboard.config_page' %}active{% endif %}">
                     <i class="bi bi-gear"></i> Config
                 </a>
-                <a href="{{ url_for('dashboard.permissions_page') }}"
-                   class="nav-link {% if request.endpoint == 'dashboard.permissions_page' %}active{% endif %}">
-                    <i class="bi bi-shield-check"></i> Permissions
-                </a>
-                <a href="{{ url_for('dashboard.review') }}"
+<a href="{{ url_for('dashboard.review') }}"
                    class="nav-link {% if request.endpoint == 'dashboard.review' %}active{% endif %}">
                     <i class="bi bi-flag"></i> Review Queue
                 </a>

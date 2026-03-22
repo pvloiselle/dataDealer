@@ -29,9 +29,9 @@
         <i class="bi bi-building text-primary" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ firm_id }}"></i>
         <strong class="me-auto" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ firm_id }}">{{ firm }}</strong>
         <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
-                title="Upload a file for {{ firm }}"
+                title="Add file for {{ firm }}"
                 data-firm="{{ firm }}" data-style="" data-asset-class="" data-region="" data-fund="" data-vehicle="">
-            <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+            <i class="bi bi-plus-lg" style="font-size:0.8rem;"></i>
         </button>
         <i class="bi bi-chevron-down text-muted" style="font-size:0.8rem; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ firm_id }}"></i>
     </div>
@@ -50,9 +50,9 @@
                     <span class="fw-semibold" style="font-size:0.9rem;">{{ style }}</span>
                 </span>
                 <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
-                        title="Upload a file for {{ firm }} / {{ style }}"
+                        title="Add file for {{ firm }} / {{ style }}"
                         data-firm="{{ firm }}" data-style="{{ style }}" data-asset-class="" data-region="" data-fund="" data-vehicle="">
-                    <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+                    <i class="bi bi-plus-lg" style="font-size:0.8rem;"></i>
                 </button>
                 <i class="bi bi-chevron-down text-muted" style="font-size:0.75rem; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ style_id }}"></i>
             </div>
@@ -67,9 +67,9 @@
                         <span class="text-secondary fw-medium" style="font-size:0.875rem;">{{ ac }}</span>
                     </span>
                     <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
-                            title="Upload a file for {{ firm }} / {{ ac }}"
+                            title="Add file for {{ firm }} / {{ ac }}"
                             data-firm="{{ firm }}" data-style="{{ style }}" data-asset-class="{{ ac }}" data-region="" data-fund="" data-vehicle="">
-                        <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+                        <i class="bi bi-plus-lg" style="font-size:0.8rem;"></i>
                     </button>
                     <i class="bi bi-chevron-down text-muted" style="font-size:0.7rem; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ ac_id }}"></i>
                 </div>
@@ -84,9 +84,9 @@
                             <span class="text-muted" style="font-size:0.85rem;">{{ region }}</span>
                         </span>
                         <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
-                                title="Upload a file for {{ firm }} / {{ ac }} / {{ region }}"
+                                title="Add file for {{ firm }} / {{ ac }} / {{ region }}"
                                 data-firm="{{ firm }}" data-style="{{ style }}" data-asset-class="{{ ac }}" data-region="{{ region }}" data-fund="" data-vehicle="">
-                            <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+                            <i class="bi bi-plus-lg" style="font-size:0.8rem;"></i>
                         </button>
                         <i class="bi bi-chevron-down text-muted" style="font-size:0.65rem; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#{{ region_id }}"></i>
                     </div>
@@ -131,21 +131,21 @@
 
                             {# Info / permissions button #}
                             <button class="btn btn-sm btn-outline-secondary border-0 py-0 px-1 info-btn"
-                                    title="Details &amp; permissions"
+                                    title="Files &amp; Access"
                                     data-firm="{{ firm }}" data-fund="{{ fund_name }}">
-                                <i class="bi bi-info-circle" style="font-size:0.85rem;"></i>
+                                <i class="bi bi-people" style="font-size:0.85rem;"></i>
                             </button>
 
                             {# Upload button #}
                             <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
-                                    title="Upload a file for this strategy"
+                                    title="Add file for this strategy"
                                     data-firm="{{ firm }}"
                                     data-style="{{ style }}"
                                     data-asset-class="{{ ac }}"
                                     data-region="{{ region }}"
                                     data-fund="{{ fund_name }}"
                                     data-vehicle="">
-                                <i class="bi bi-upload" style="font-size:0.8rem;"></i>
+                                <i class="bi bi-plus-lg" style="font-size:0.8rem;"></i>
                             </button>
                         </div>
 
@@ -167,8 +167,13 @@
                                         <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 ms-1" style="font-size:0.68rem;"><i class="bi bi-lock"></i> Restricted</span>
                                     {% endif %}
                                     <span class="ms-auto badge bg-light text-muted border" style="font-size:0.68rem;">{{ entry.file_count }} file{{ 's' if entry.file_count != 1 }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary border-0 py-0 px-1 ms-1"
+                                            title="Manage access"
+                                            onclick="openDetails('{{ firm }}', '{{ fund_name }}', '{{ entry.vehicle }}')">
+                                        <i class="bi bi-key" style="font-size:0.75rem;"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-primary border-0 py-0 px-1 upload-btn"
-                                            title="Upload for this vehicle"
+                                            title="Add file for this vehicle"
                                             data-firm="{{ firm }}"
                                             data-style="{{ style }}"
                                             data-asset-class="{{ ac }}"
@@ -176,7 +181,7 @@
                                             data-fund="{{ fund_name }}"
                                             data-vehicle="{{ entry.vehicle }}"
                                             data-share-class="{{ entry.share_class }}">
-                                        <i class="bi bi-upload" style="font-size:0.75rem;"></i>
+                                        <i class="bi bi-plus-lg" style="font-size:0.75rem;"></i>
                                     </button>
                                 </div>
                                 {% endif %}{% endfor %}
@@ -456,21 +461,27 @@ updateModalAccessTiles();
 
 
 // ── Info / Permissions modal ──────────────────────────────────────────────────
-let _infoFirm = '', _infoFund = '';
+let _infoFirm = '', _infoFund = '', _infoVehicle = '';
 
 document.querySelectorAll('.info-btn').forEach(btn => {
     btn.addEventListener('click', function () {
-        _infoFirm = this.dataset.firm;
-        _infoFund = this.dataset.fund;
-        document.getElementById('infoModalLabel').textContent = _infoFund + ' — Details & Permissions';
-        loadInfoModal();
-        new bootstrap.Modal(document.getElementById('infoModal')).show();
+        openDetails(this.dataset.firm, this.dataset.fund, '');
     });
 });
 
+function openDetails(firm, fund, vehicle) {
+    _infoFirm = firm;
+    _infoFund = fund;
+    _infoVehicle = vehicle || '';
+    const title = vehicle ? `${fund} · ${vehicle} — Files & Access` : `${fund} — Files & Access`;
+    document.getElementById('infoModalLabel').textContent = title;
+    loadInfoModal();
+    new bootstrap.Modal(document.getElementById('infoModal')).show();
+}
+
 function loadInfoModal() {
     document.getElementById('infoModalBody').innerHTML =
-        '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Loading…</div>';
+        '<div class="text-center py-4"><div class="spinner-border"></div></div>';
 
     fetch('/strategies/details?firm=' + encodeURIComponent(_infoFirm) +
                               '&fund=' + encodeURIComponent(_infoFund))
@@ -551,13 +562,22 @@ function renderInfoModal(data) {
                 </select>
             </div>
             <div class="col-md-1">
-                <button class="btn btn-primary btn-sm w-100" onclick="addPermission()">Add</button>
+                <button id="perm-add-btn" class="btn btn-primary btn-sm w-100" onclick="addPermission()">Add</button>
             </div>
         </div>
         <div id="perm-msg" class="mt-2" style="font-size:0.82rem;"></div>
     </div>`;
 
     document.getElementById('infoModalBody').innerHTML = html;
+    // Pre-select vehicle if opened from vehicle row
+    if (_infoVehicle) {
+        const vsel = document.getElementById('perm-vehicle');
+        if (vsel) {
+            for (const opt of vsel.options) {
+                if (opt.value === _infoVehicle || opt.text === _infoVehicle) { vsel.value = opt.value; break; }
+            }
+        }
+    }
 }
 
 function permRow(p) {
@@ -585,6 +605,9 @@ function addPermission() {
 
     if (!email) { msg.innerHTML = '<span class="text-danger">Email is required.</span>'; return; }
 
+    const addBtn = document.getElementById('perm-add-btn');
+    if (addBtn) { addBtn.disabled = true; addBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+
     fetch('/strategies/permissions/add', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -595,6 +618,7 @@ function addPermission() {
         return r.json();
     })
     .then(data => {
+        if (addBtn) { addBtn.disabled = false; addBtn.innerHTML = 'Add'; }
         if (!data) return;
         if (data.error) { msg.innerHTML = `<span class="text-danger">${esc(data.error)}</span>`; return; }
         const p = data.permission;
@@ -613,7 +637,10 @@ function addPermission() {
         msg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Added.</span>';
         setTimeout(() => { if (msg) msg.innerHTML = ''; }, 3000);
     })
-    .catch(() => { msg.innerHTML = '<span class="text-danger">Request failed.</span>'; });
+    .catch(() => {
+        if (addBtn) { addBtn.disabled = false; addBtn.innerHTML = 'Add'; }
+        msg.innerHTML = '<span class="text-danger">Request failed.</span>';
+    });
 }
 
 function removePermission(id) {

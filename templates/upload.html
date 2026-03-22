@@ -508,6 +508,13 @@
     document.getElementById('fund_name').addEventListener('blur', checkDuplicates);
     document.getElementById('data_type').addEventListener('change', checkDuplicates);
 
+    // ── Upload button spinner ────────────────────────────────────────────────
+    document.getElementById('upload-form').addEventListener('submit', function() {
+        const btn = this.querySelector('[type=submit]');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading & indexing…';
+    });
+
     // ── AI-assisted pre-fill ─────────────────────────────────────────────────
     // When the user picks a file, send it to /upload/analyze and pre-fill
     // the metadata fields with Claude's suggestions.
