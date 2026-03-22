@@ -244,9 +244,15 @@ def upload_analyze():
     filename = uploaded_file.filename
     file_bytes = uploaded_file.read()
 
-    from modules import ai_analyzer
-    suggestions = ai_analyzer.analyze_file_for_metadata(filename, file_bytes)
-    return jsonify(suggestions)
+    try:
+        from modules import ai_analyzer
+        suggestions = ai_analyzer.analyze_file_for_metadata(filename, file_bytes)
+        return jsonify(suggestions)
+    except Exception as e:
+        import traceback
+        print(f"[Analyzer] Unhandled error in upload_analyze: {e}")
+        traceback.print_exc()
+        return jsonify({}), 500
 
 
 @bp.route("/upload/check-duplicate")
