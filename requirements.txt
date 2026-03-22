@@ -15,7 +15,7 @@ google-auth-httplib2==0.2.0         # HTTP transport for Google auth
 google-auth-oauthlib==1.2.0         # OAuth 2.0 login flow for Gmail
 
 # --- Anthropic (Claude AI) ---
-anthropic==0.28.0               # Claude API for email parsing
+anthropic>=0.40.0               # Claude API for email parsing
 
 # --- Semantic Search / Embeddings ---
 sentence-transformers==3.0.1    # Generates text embeddings for file matching
