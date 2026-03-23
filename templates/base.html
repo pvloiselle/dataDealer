@@ -17,15 +17,30 @@
 
     <style>
         /* ─────────────────────────────────────────────────────────────────────
+           Design tokens
+        ───────────────────────────────────────────────────────────────────── */
+        :root {
+            --bg-page:          #f0f4f8;
+            --bg-sidebar:       #0f172a;
+            --accent-blue:      #3b82f6;
+            --accent-blue-dark: #2563eb;
+            --border:           #e2e8f0;
+            --text-primary:     #0f172a;
+            --text-secondary:   #475569;
+            --text-muted:       #64748b;
+        }
+
+        /* ─────────────────────────────────────────────────────────────────────
            Base & Typography
         ───────────────────────────────────────────────────────────────────── */
         body {
-            background-color: #f8f9fa;
+            background-color: var(--bg-page);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             font-size: 0.875rem;
-            color: #111827;
+            color: var(--text-primary);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            font-feature-settings: "cv02","cv03","cv04","cv11";
         }
 
         h1, h2, h3, h4, h5, h6 {
@@ -38,33 +53,32 @@
         ───────────────────────────────────────────────────────────────────── */
         .sidebar {
             min-height: 100vh;
-            background-color: #1a1f36;
+            background-color: var(--bg-sidebar);
             padding-top: 0.75rem;
         }
 
-        /* Every nav link gets a transparent left border as a placeholder
-           so the active accent bar doesn't shift other links when it appears */
         .sidebar .nav-link {
             color: #94a3b8;
-            padding: 0.45rem 1.25rem;
-            border-radius: 0;
-            margin: 1px 0;
+            padding: 0.5rem 1rem 0.5rem 1.25rem;
+            border-radius: 6px;
+            margin: 1px 0.75rem;
             font-size: 0.8125rem;
             font-weight: 500;
-            transition: color 0.1s;
-            border-left: 2px solid transparent;
+            transition: color 0.1s, background-color 0.1s;
+            border-left: 3px solid transparent;
+            border-radius: 0 6px 6px 0;
         }
 
         .sidebar .nav-link:hover {
             color: #e2e8f0;
-            background-color: rgba(255, 255, 255, 0.04);
+            background-color: rgba(255, 255, 255, 0.05);
         }
 
-        /* Active state: left-edge accent bar, no background block */
+        /* Active state: full-width pill with blue left border */
         .sidebar .nav-link.active {
             color: #ffffff;
-            border-left-color: #7c9ef8;
-            background-color: rgba(124, 158, 248, 0.07);
+            border-left-color: var(--accent-blue);
+            background-color: rgba(59, 130, 246, 0.12);
         }
 
         .sidebar .nav-link i {
@@ -82,15 +96,24 @@
         .sidebar-brand {
             color: #ffffff;
             font-weight: 700;
-            font-size: 1.05rem;
+            font-size: 1.1rem;
             padding: 0.5rem 1.25rem 1.5rem 1.25rem;
             display: block;
             text-decoration: none;
-            letter-spacing: -0.01em;
+            letter-spacing: -0.02em;
         }
 
         .sidebar-brand span {
-            color: #7c9ef8;
+            color: var(--accent-blue);
+        }
+
+        /* Admin footer area */
+        .sidebar-admin-footer {
+            margin: 1rem 0.75rem 0.75rem;
+            padding: 0.6rem 0.875rem;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 8px;
+            background-color: rgba(255,255,255,0.03);
         }
 
         /* ─────────────────────────────────────────────────────────────────────
@@ -104,7 +127,7 @@
            Page header
         ───────────────────────────────────────────────────────────────────── */
         .page-header {
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border);
             margin-bottom: 1.75rem;
             padding-bottom: 1rem;
         }
@@ -112,28 +135,28 @@
         .page-header h1 {
             font-size: 1.3rem;
             font-weight: 600;
-            color: #111827;
+            color: var(--text-primary);
             letter-spacing: -0.015em;
             margin-bottom: 0.2rem;
         }
 
         .page-header .text-muted {
             font-size: 0.8125rem;
-            color: #6b7280 !important;
+            color: var(--text-secondary) !important;
         }
 
         /* ─────────────────────────────────────────────────────────────────────
            Cards
         ───────────────────────────────────────────────────────────────────── */
         .card {
-            border: 1px solid #e5e7eb !important;
-            border-radius: 8px !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.06) !important;
         }
 
         .card-header {
             background-color: #ffffff !important;
-            border-bottom: 1px solid #e5e7eb !important;
+            border-bottom: 1px solid var(--border) !important;
             padding: 0.875rem 1.25rem !important;
         }
 
@@ -157,26 +180,30 @@
             --bs-table-striped-bg: transparent;
         }
 
-        /* Thin row separators only — no vertical lines, no heavy grid */
         .table > :not(caption) > * > * {
-            border-bottom: 1px solid #f3f4f6;
+            border-bottom: 1px solid #eef2f7;
             padding: 0.6rem 0.75rem;
         }
 
         .table thead th {
-            background-color: #f9fafb !important;
-            color: #6b7280;
+            background-color: #f8fafc !important;
+            color: var(--text-secondary);
             font-size: 0.7rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e5e7eb !important;
+            letter-spacing: 0.06em;
+            border-bottom: 1px solid var(--border) !important;
             border-top: none;
         }
 
         .table-hover > tbody > tr:hover > * {
-            background-color: #fafafa;
+            background-color: #f8fafc;
             --bs-table-accent-bg: transparent;
+        }
+
+        /* tabular numbers in table cells */
+        .table td {
+            font-variant-numeric: tabular-nums;
         }
 
         /* ─────────────────────────────────────────────────────────────────────
@@ -192,14 +219,15 @@
         }
 
         .btn-primary {
-            background-color: #2563eb;
-            border-color: #2563eb;
-            box-shadow: 0 1px 2px rgba(37, 99, 235, 0.18);
+            background: linear-gradient(180deg, #2a69ed 0%, #1d4ed8 100%);
+            border-color: #1d4ed8;
+            box-shadow: 0 1px 3px rgba(37,99,235,0.25), 0 1px 2px rgba(37,99,235,0.15);
         }
 
         .btn-primary:hover, .btn-primary:focus {
-            background-color: #1d4ed8;
-            border-color: #1d4ed8;
+            background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+            border-color: #1e40af;
+            box-shadow: 0 2px 5px rgba(37,99,235,0.30);
         }
 
         .btn-success {
@@ -214,13 +242,13 @@
 
         .btn-outline-secondary {
             color: #4b5563;
-            border-color: #d1d5db;
+            border-color: #cbd5e1;
             background-color: #ffffff;
         }
 
         .btn-outline-secondary:hover {
-            background-color: #f9fafb;
-            border-color: #9ca3af;
+            background-color: #f8fafc;
+            border-color: #94a3b8;
             color: #1f2937;
         }
 
@@ -253,23 +281,23 @@
         .form-select {
             font-size: 0.8375rem;
             font-family: inherit;
-            border: 1px solid #d1d5db;
+            border: 1px solid #cbd5e1;
             border-radius: 6px;
             padding: 0.45rem 0.75rem;
-            color: #111827;
+            color: var(--text-primary);
             background-color: #ffffff;
             transition: border-color 0.1s, box-shadow 0.1s;
         }
 
         .form-control:focus,
         .form-select:focus {
-            border-color: #7c9ef8;
-            box-shadow: 0 0 0 3px rgba(124, 158, 248, 0.15);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
             outline: none;
         }
 
         .form-control::placeholder {
-            color: #9ca3af;
+            color: #94a3b8;
         }
 
         .form-label {
@@ -281,27 +309,27 @@
 
         .form-text {
             font-size: 0.75rem;
-            color: #9ca3af;
+            color: #94a3b8;
             margin-top: 0.3rem;
         }
 
         .form-check-input:checked {
-            background-color: #2563eb;
-            border-color: #2563eb;
+            background-color: var(--accent-blue-dark);
+            border-color: var(--accent-blue-dark);
         }
 
         .form-check-input:focus {
-            border-color: #7c9ef8;
-            box-shadow: 0 0 0 3px rgba(124, 158, 248, 0.15);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
         }
 
         /* ─────────────────────────────────────────────────────────────────────
            Stat cards (dashboard overview tiles)
         ───────────────────────────────────────────────────────────────────── */
         .stat-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            box-shadow: none;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
         }
 
         .stat-card .card-body {
@@ -313,31 +341,72 @@
             font-weight: 700;
             line-height: 1;
             letter-spacing: -0.03em;
-            color: #111827;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Colored top border accent per card — set via inline style on the card */
+        .stat-card-accent {
+            border-top: 3px solid var(--stat-accent-color, #3b82f6) !important;
+        }
+
+        /* Icon badge inside stat card */
+        .stat-icon-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
         }
 
         /* ─────────────────────────────────────────────────────────────────────
-           Status badges — semantic colors kept as-is
+           Status badges — soft tint style
         ───────────────────────────────────────────────────────────────────── */
-        .badge-auto_sent             { background-color: #198754; }
-        .badge-forwarded             { background-color: #fd7e14; }
-        .badge-reviewed              { background-color: #6c757d; }
-        .badge-pending               { background-color: #ffc107; color: #333; }
-        .badge-flagged               { background-color: #dc3545; }
-        .badge-pending_clarification { background-color: #6f42c1; }
-
-        /* General badge refinement */
         .badge {
             font-weight: 500;
             font-size: 0.7rem;
             letter-spacing: 0.02em;
+            border-radius: 999px;
+        }
+
+        .badge-auto_fulfilled {
+            background-color: #dcfce7 !important;
+            color: #15803d !important;
+        }
+
+        .badge-pending {
+            background-color: #fef9c3 !important;
+            color: #854d0e !important;
+        }
+
+        .badge-flagged {
+            background-color: #fee2e2 !important;
+            color: #dc2626 !important;
+        }
+
+        .badge-reviewed {
+            background-color: #f1f5f9 !important;
+            color: #475569 !important;
+        }
+
+        .badge-forwarded {
+            background-color: #ffedd5 !important;
+            color: #c2410c !important;
+        }
+
+        .badge-pending_clarification {
+            background-color: #ede9fe !important;
+            color: #6d28d9 !important;
         }
 
         /* ─────────────────────────────────────────────────────────────────────
            Alerts
         ───────────────────────────────────────────────────────────────────── */
         .alert {
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 0.8375rem;
         }
 
@@ -346,10 +415,10 @@
         ───────────────────────────────────────────────────────────────────── */
         code {
             font-size: 0.78rem;
-            background-color: #f3f4f6;
+            background-color: #f1f5f9;
             padding: 0.15em 0.45em;
             border-radius: 4px;
-            color: #1f2937;
+            color: #1e293b;
         }
 
         /* ─────────────────────────────────────────────────────────────────────
@@ -384,7 +453,7 @@
     <div class="row g-0">
 
         <!-- ── Sidebar navigation ── -->
-        <div class="col-auto sidebar" style="width: 220px; min-width: 220px;">
+        <div class="col-auto sidebar" style="width: 240px; min-width: 240px;">
             <a href="/" class="sidebar-brand">Data<span>Dealer</span></a>
 
             <nav class="nav flex-column">
@@ -404,7 +473,7 @@
                    class="nav-link {% if request.endpoint == 'dashboard.config_page' %}active{% endif %}">
                     <i class="bi bi-gear"></i> Config
                 </a>
-<a href="{{ url_for('dashboard.review') }}"
+                <a href="{{ url_for('dashboard.review') }}"
                    class="nav-link {% if request.endpoint == 'dashboard.review' %}active{% endif %}">
                     <i class="bi bi-flag"></i> Review Queue
                 </a>
@@ -415,20 +484,20 @@
             </nav>
 
             <!-- Admin session indicator -->
-            <div style="padding: 0.75rem 1.25rem; border-top: 1px solid #2d3561; margin-top: 1rem;">
+            <div class="sidebar-admin-footer">
                 {% if session.get('is_admin') %}
                 <div class="d-flex align-items-center justify-content-between">
-                    <span style="color: #7c9ef8; font-size: 0.78rem;">
+                    <span style="color: var(--accent-blue); font-size: 0.78rem;">
                         <i class="bi bi-shield-fill-check me-1"></i>Admin
                     </span>
                     <form method="POST" action="{{ url_for('dashboard.admin_logout') }}" class="m-0">
-                        <button type="submit" style="background:none;border:none;color:#a0aec0;font-size:0.78rem;cursor:pointer;padding:0;">
+                        <button type="submit" style="background:none;border:none;color:#94a3b8;font-size:0.78rem;cursor:pointer;padding:0;">
                             <i class="bi bi-box-arrow-right me-1"></i>Log out
                         </button>
                     </form>
                 </div>
                 {% else %}
-                <a href="{{ url_for('dashboard.admin_login') }}" style="color: #a0aec0; font-size: 0.78rem; text-decoration: none;">
+                <a href="{{ url_for('dashboard.admin_login') }}" style="color: #94a3b8; font-size: 0.78rem; text-decoration: none;">
                     <i class="bi bi-shield me-1"></i>Admin login
                 </a>
                 {% endif %}

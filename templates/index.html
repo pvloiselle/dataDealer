@@ -11,40 +11,46 @@
 <div class="row g-3 mb-4">
 
     <div class="col-md-3">
-        <div class="card stat-card h-100">
+        <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #2563eb;">
             <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-envelope-open fs-4 text-primary me-2"></i>
+                <div class="d-flex align-items-start justify-content-between mb-3">
                     <span class="text-muted small">Total Requests</span>
+                    <div class="stat-icon-badge" style="background: rgba(37,99,235,0.08);">
+                        <i class="bi bi-envelope-open" style="color: #2563eb;"></i>
+                    </div>
                 </div>
-                <div class="stat-number text-primary">{{ total_requests }}</div>
-                <p class="text-muted small mt-1 mb-0">All-time emails received</p>
+                <div class="stat-number" style="color: #2563eb;">{{ total_requests }}</div>
+                <p class="text-muted small mt-2 mb-0">All-time emails received</p>
             </div>
         </div>
     </div>
 
     <div class="col-md-3">
-        <div class="card stat-card h-100">
+        <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #10b981;">
             <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-check-circle fs-4 text-success me-2"></i>
+                <div class="d-flex align-items-start justify-content-between mb-3">
                     <span class="text-muted small">Auto-Sent</span>
+                    <div class="stat-icon-badge" style="background: rgba(16,185,129,0.08);">
+                        <i class="bi bi-check-circle" style="color: #10b981;"></i>
+                    </div>
                 </div>
-                <div class="stat-number text-success">{{ auto_fulfilled }}</div>
-                <p class="text-muted small mt-1 mb-0">Sent automatically (high confidence)</p>
+                <div class="stat-number" style="color: #10b981;">{{ auto_fulfilled }}</div>
+                <p class="text-muted small mt-2 mb-0">Sent automatically (high confidence)</p>
             </div>
         </div>
     </div>
 
     <div class="col-md-3">
-        <div class="card stat-card h-100">
+        <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #f59e0b;">
             <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-forward fs-4 text-warning me-2"></i>
+                <div class="d-flex align-items-start justify-content-between mb-3">
                     <span class="text-muted small">Forwarded</span>
+                    <div class="stat-icon-badge" style="background: rgba(245,158,11,0.08);">
+                        <i class="bi bi-forward" style="color: #f59e0b;"></i>
+                    </div>
                 </div>
-                <div class="stat-number text-warning">{{ forwarded_count }}</div>
-                <p class="text-muted small mt-1 mb-0">
+                <div class="stat-number" style="color: #f59e0b;">{{ forwarded_count }}</div>
+                <p class="text-muted small mt-2 mb-0">
                     {% if forwarded_count > 0 %}
                         <a href="{{ url_for('dashboard.review') }}">View forwarded →</a>
                     {% else %}
@@ -56,14 +62,16 @@
     </div>
 
     <div class="col-md-3">
-        <div class="card stat-card h-100">
+        <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #6366f1;">
             <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-file-earmark fs-4 text-secondary me-2"></i>
+                <div class="d-flex align-items-start justify-content-between mb-3">
                     <span class="text-muted small">Files Indexed</span>
+                    <div class="stat-icon-badge" style="background: rgba(99,102,241,0.08);">
+                        <i class="bi bi-file-earmark" style="color: #6366f1;"></i>
+                    </div>
                 </div>
-                <div class="stat-number text-secondary">{{ total_files }}</div>
-                <p class="text-muted small mt-1 mb-0">
+                <div class="stat-number" style="color: #6366f1;">{{ total_files }}</div>
+                <p class="text-muted small mt-2 mb-0">
                     <a href="{{ url_for('dashboard.upload') }}">Manage files →</a>
                 </p>
             </div>
@@ -71,14 +79,16 @@
     </div>
 
     <div class="col-md-3">
-        <div class="card stat-card h-100">
+        <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #f43f5e;">
             <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-exclamation-triangle fs-4 text-warning me-2"></i>
+                <div class="d-flex align-items-start justify-content-between mb-3">
                     <span class="text-muted small">Needs Update</span>
+                    <div class="stat-icon-badge" style="background: rgba(244,63,94,0.08);">
+                        <i class="bi bi-exclamation-triangle" style="color: #f43f5e;"></i>
+                    </div>
                 </div>
-                <div class="stat-number text-warning">{{ stale_count }}</div>
-                <p class="text-muted small mt-1 mb-0">
+                <div class="stat-number" style="color: #f43f5e;">{{ stale_count }}</div>
+                <p class="text-muted small mt-2 mb-0">
                     {% if stale_count > 0 %}
                         <a href="#stale-files">View stale files ↓</a>
                     {% else %}
@@ -190,7 +200,7 @@
                     </td>
                     <td class="text-muted small">{{ sf.next_update_date or '—' }}</td>
                     <td>
-                        <span class="badge bg-warning text-dark">
+                        <span class="badge" style="background-color:#fee2e2;color:#dc2626;">
                             <i class="bi bi-exclamation-triangle me-1"></i>Overdue
                         </span>
                     </td>

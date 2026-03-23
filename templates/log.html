@@ -9,32 +9,51 @@
     </p>
 </div>
 
-<!-- ── Status filter tabs ── -->
-<ul class="nav nav-tabs mb-3" id="logTabs">
-    <li class="nav-item">
-        <a class="nav-link active" id="tab-all" href="#" onclick="filterTable('all'); return false;">
-            All <span class="badge bg-secondary ms-1">{{ requests | length }}</span>
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="#" onclick="filterTable('auto_fulfilled'); return false;">
-            <span class="badge badge-auto_fulfilled me-1">&nbsp;</span>
-            Auto-Fulfilled
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="#" onclick="filterTable('flagged'); return false;">
-            <span class="badge badge-flagged me-1">&nbsp;</span>
-            Flagged
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="#" onclick="filterTable('reviewed'); return false;">
-            <span class="badge badge-reviewed me-1">&nbsp;</span>
-            Reviewed
-        </a>
-    </li>
-</ul>
+<!-- ── Status filter tabs (pill segment control) ── -->
+<style>
+    .log-tab-bar {
+        background: #eef2f7;
+        border-radius: 8px;
+        padding: 3px;
+        display: inline-flex;
+        gap: 2px;
+        margin-bottom: 1rem;
+    }
+    .log-tab-bar .nav-link {
+        color: #64748b;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        padding: 0.35rem 0.875rem;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        transition: background 0.1s, color 0.1s;
+        line-height: 1.5;
+    }
+    .log-tab-bar .nav-link:hover {
+        color: #1e293b;
+        background: rgba(255,255,255,0.6);
+    }
+    .log-tab-bar .nav-link.active {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 1px 3px rgba(37,99,235,0.25);
+    }
+</style>
+<div class="log-tab-bar nav" id="logTabs">
+    <a class="nav-link active" id="tab-all" href="#" onclick="filterTable('all'); return false;">
+        All <span class="ms-1 opacity-75">{{ requests | length }}</span>
+    </a>
+    <a class="nav-link" href="#" onclick="filterTable('auto_fulfilled'); return false;">
+        Auto-Fulfilled
+    </a>
+    <a class="nav-link" href="#" onclick="filterTable('flagged'); return false;">
+        Flagged
+    </a>
+    <a class="nav-link" href="#" onclick="filterTable('reviewed'); return false;">
+        Reviewed
+    </a>
+</div>
 
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
