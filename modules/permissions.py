@@ -55,12 +55,16 @@ def is_approved(sender_email: str, fund_name: str | None, firm_name: str | None 
 
 
 def add_permission(email_address: str, firm_name: str = "", fund_name: str = "",
-                   vehicle: str = "", share_class: str = "") -> dict:
+                   vehicle: str = "", share_class: str = "",
+                   granted_by: str = "") -> dict:
     """
     Add an approved email address for a fund, optionally scoped to a vehicle and share class.
     If the permission already exists, returns the existing record instead.
+
+    granted_by: email address of the person adding this permission (for ownership tracking).
     """
     email_address = email_address.lower().strip()
+    granted_by = granted_by.lower().strip()
     conn = get_db()
 
     existing = conn.execute(
@@ -81,11 +85,11 @@ def add_permission(email_address: str, firm_name: str = "", fund_name: str = "",
 
     cursor = conn.execute(
         """
-        INSERT INTO permissions (email_address, firm_name, fund_name, vehicle, share_class, added_date)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO permissions (email_address, firm_name, fund_name, vehicle, share_class, added_date, granted_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (email_address, firm_name or "", fund_name, vehicle or "", share_class or "",
-         datetime.datetime.now().isoformat()),
+         datetime.datetime.now().isoformat(), granted_by),
     )
     conn.commit()
     new_id = cursor.lastrowid
@@ -96,26 +100,53 @@ def add_permission(email_address: str, firm_name: str = "", fund_name: str = "",
         label += f" / {vehicle}"
     if share_class:
         label += f" / {share_class}"
-    print(f"[Permissions] Added: {email_address} → {label}")
+    print(f"[Permissions] Added: {email_address} → {label} (granted by: {granted_by or 'unrecorded'})")
     return {
         "id": new_id,
         "email_address": email_address,
         "fund_name": fund_name,
         "vehicle": vehicle or "",
         "share_class": share_class or "",
+        "granted_by": granted_by,
     }
 
 
-def remove_permission(permission_id: int) -> bool:
-    """Remove a permission by its database ID."""
+def remove_permission(permission_id: int, requesting_email: str = "") -> tuple[bool, str]:
+    """
+    Remove a permission by its database ID.
+
+    requesting_email: the email of the person attempting the removal.
+    If the permission has a recorded granted_by, this must match (case-insensitive).
+    Legacy rows with no granted_by recorded can be removed by anyone.
+
+    Returns (success, message).
+    """
     conn = get_db()
-    result = conn.execute("DELETE FROM permissions WHERE id = ?", (permission_id,))
+    row = conn.execute(
+        "SELECT granted_by FROM permissions WHERE id = ?", (permission_id,)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return False, "Permission not found."
+
+    stored_granter = (row["granted_by"] or "").lower().strip()
+    incoming = (requesting_email or "").lower().strip()
+
+    # If the permission has a recorded granter, the caller must match it.
+    # Legacy rows (no granter recorded) can be freely deleted.
+    if stored_granter and incoming != stored_granter:
+        conn.close()
+        return False, (
+            f"This permission was granted by {stored_granter}. "
+            f"Only they can remove it — enter their email to confirm."
+        )
+
+    conn.execute("DELETE FROM permissions WHERE id = ?", (permission_id,))
     conn.commit()
-    deleted = result.rowcount > 0
     conn.close()
-    if deleted:
-        print(f"[Permissions] Removed permission ID: {permission_id}")
-    return deleted
+    print(f"[Permissions] Removed permission ID: {permission_id}")
+    return True, "Permission removed."
 
 
 def get_all_permissions() -> list[dict]:

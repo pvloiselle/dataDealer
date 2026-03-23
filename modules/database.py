@@ -174,6 +174,7 @@ def init_db():
     _add_column_if_missing(conn, "permissions", "firm_name",   "TEXT", perm_cols)
     _add_column_if_missing(conn, "permissions", "vehicle",     "TEXT", perm_cols)
     _add_column_if_missing(conn, "permissions", "share_class", "TEXT", perm_cols)
+    _add_column_if_missing(conn, "permissions", "granted_by",  "TEXT", perm_cols)
 
     req_cols = [row[1] for row in conn.execute("PRAGMA table_info(requests)").fetchall()]
     _add_column_if_missing(conn, "requests", "parsed_firm",               "TEXT", req_cols)

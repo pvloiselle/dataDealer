@@ -332,12 +332,16 @@ def add_permission():
     fund_name = request.form.get("fund_name", "").strip()
     vehicle = request.form.get("vehicle", "").strip()
     share_class = request.form.get("share_class", "").strip()
+    granted_by = request.form.get("granted_by", "").strip()
 
     if not email_address or not fund_name:
         flash("Email address and fund name are required.", "error")
         return redirect(url_for("dashboard.permissions_page"))
+    if not granted_by:
+        flash("Your email is required so ownership of this permission can be recorded.", "error")
+        return redirect(url_for("dashboard.permissions_page"))
 
-    permissions.add_permission(email_address, firm_name, fund_name, vehicle, share_class)
+    permissions.add_permission(email_address, firm_name, fund_name, vehicle, share_class, granted_by)
     label = f"{firm_name} / {fund_name}" if firm_name else fund_name
     if vehicle:
         label += f" / {vehicle}"
@@ -350,12 +354,13 @@ def add_permission():
 @bp.route("/permissions/<int:perm_id>/remove", methods=["POST"])
 @require_admin
 def remove_permission(perm_id):
-    """Remove a permission by ID."""
-    deleted = permissions.remove_permission(perm_id)
-    if deleted:
+    """Remove a permission by ID. Requires the granter's email to confirm ownership."""
+    confirm_email = request.form.get("confirm_email", "").strip()
+    success, reason = permissions.remove_permission(perm_id, confirm_email)
+    if success:
         flash("Permission removed.", "success")
     else:
-        flash("Permission not found.", "error")
+        flash(reason, "error")
     return redirect(url_for("dashboard.permissions_page"))
 
 
@@ -602,16 +607,19 @@ def strategy_details():
 def strategies_add_permission():
     """AJAX: add a permission from the Strategy Browser info modal."""
     data = request.get_json() or {}
-    email     = (data.get("email") or "").strip()
-    firm      = (data.get("firm") or "").strip()
-    fund      = (data.get("fund") or "").strip()
-    vehicle   = (data.get("vehicle") or "").strip()
-    share_cls = (data.get("share_class") or "").strip()
+    email      = (data.get("email") or "").strip()
+    firm       = (data.get("firm") or "").strip()
+    fund       = (data.get("fund") or "").strip()
+    vehicle    = (data.get("vehicle") or "").strip()
+    share_cls  = (data.get("share_class") or "").strip()
+    granted_by = (data.get("granted_by") or "").strip()
 
     if not email or not fund:
         return jsonify({"error": "Email and fund are required."}), 400
+    if not granted_by:
+        return jsonify({"error": "Your email is required to record ownership of this permission."}), 400
 
-    result = permissions.add_permission(email, firm, fund, vehicle, share_cls)
+    result = permissions.add_permission(email, firm, fund, vehicle, share_cls, granted_by)
     return jsonify({"success": True, "permission": result})
 
 
@@ -619,10 +627,12 @@ def strategies_add_permission():
 @require_admin
 def strategies_remove_permission(perm_id):
     """AJAX: remove a permission from the Strategy Browser info modal."""
-    deleted = permissions.remove_permission(perm_id)
-    if deleted:
+    data = request.get_json() or {}
+    confirm_email = (data.get("confirm_email") or "").strip()
+    success, reason = permissions.remove_permission(perm_id, confirm_email)
+    if success:
         return jsonify({"success": True})
-    return jsonify({"error": "Permission not found."}), 404
+    return jsonify({"error": reason}), 403
 
 
 # ── Configuration Page ────────────────────────────────────────────────────────
@@ -635,8 +645,12 @@ def config_page():
     regions = cr_routing.get_all_regions()
     assignments = cr_routing.get_all_assignments()
     sender_profiles = cr_routing.get_all_sender_profiles()
+    load_counts = {
+        r["region_name"]: cr_routing.get_member_load_counts(r["region_name"])
+        for r in regions
+    }
     return render_template("config.html", regions=regions, assignments=assignments,
-                           sender_profiles=sender_profiles)
+                           sender_profiles=sender_profiles, load_counts=load_counts)
 
 
 @bp.route("/config/regions/add", methods=["POST"])

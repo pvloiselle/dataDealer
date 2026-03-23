@@ -78,8 +78,8 @@
     </div>
     <div class="card-body">
         <p class="text-muted small mb-3">
-            Assign CR team members to each region. When a sender's region is known,
-            the first assigned member for that region will receive the forwarded request.
+            Assign CR team members to each region. Forwarded requests are routed to the member
+            with the fewest outstanding (unresolved) requests at the time of receipt.
         </p>
 
         {% if assignments %}
@@ -89,17 +89,30 @@
                     <th>Region</th>
                     <th>Member Name</th>
                     <th>Member Email</th>
+                    <th>Outstanding</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for a in assignments %}
+                {% set member_loads = load_counts.get(a.region_name, []) %}
+                {% set member_load = member_loads | selectattr("member_email", "equalto", a.member_email) | first | default(None) %}
                 <tr>
                     <td>
                         <span class="badge bg-light text-dark border">{{ a.region_name }}</span>
                     </td>
                     <td class="fw-medium">{{ a.member_name }}</td>
                     <td class="text-muted small">{{ a.member_email }}</td>
+                    <td>
+                        {% if member_load is not none %}
+                            {% set count = member_load.outstanding_count %}
+                            <span class="badge {% if count > 3 %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}">
+                                {{ count }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <form method="POST"
                               action="{{ url_for('dashboard.config_remove_assignment', assignment_id=a.id) }}"

@@ -81,6 +81,64 @@ def get_cr_members_for_region(region_name: str) -> list:
     conn.close()
     return [dict(r) for r in rows]
 
+
+def get_least_loaded_member(region_name: str) -> dict | None:
+    """
+    Return the cr_assignments row for the member in region_name who currently
+    has the fewest outstanding requests (status IN ('forwarded', 'pending_clarification')).
+    Ties are broken alphabetically by member_email for deterministic results.
+    Returns None if the region has no members configured.
+    """
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT
+            ca.id,
+            ca.region_name,
+            ca.member_name,
+            ca.member_email,
+            COUNT(r.id) AS outstanding_count
+        FROM cr_assignments ca
+        LEFT JOIN requests r
+               ON LOWER(r.assigned_to) = LOWER(ca.member_email)
+              AND r.status IN ('forwarded', 'pending_clarification')
+        WHERE LOWER(ca.region_name) = ?
+        GROUP BY ca.id, ca.region_name, ca.member_name, ca.member_email
+        ORDER BY outstanding_count ASC, ca.member_email ASC
+        """,
+        (region_name.lower(),)
+    ).fetchall()
+    conn.close()
+    if not rows:
+        return None
+    return dict(rows[0])
+
+
+def get_member_load_counts(region_name: str) -> list:
+    """
+    Return all members in region_name with their current outstanding_count.
+    Used for displaying load distribution on the config page.
+    """
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT
+            ca.member_name,
+            ca.member_email,
+            COUNT(r.id) AS outstanding_count
+        FROM cr_assignments ca
+        LEFT JOIN requests r
+               ON LOWER(r.assigned_to) = LOWER(ca.member_email)
+              AND r.status IN ('forwarded', 'pending_clarification')
+        WHERE LOWER(ca.region_name) = ?
+        GROUP BY ca.id, ca.member_name, ca.member_email
+        ORDER BY outstanding_count ASC, ca.member_email ASC
+        """,
+        (region_name.lower(),)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
 def get_sender_region(email_address: str):
     conn = get_db()
     row = conn.execute(

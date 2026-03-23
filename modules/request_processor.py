@@ -74,9 +74,10 @@ def process_email(msg: dict) -> None:
             )
             return
         else:
-            members = cr_mod.get_cr_members_for_region(region)
-            assigned_to = members[0]["member_email"] if members else None
-            print(f"[Processor] Sender region: '{region}', assigned to: {assigned_to}")
+            member = cr_mod.get_least_loaded_member(region)
+            assigned_to = member["member_email"] if member else None
+            load = member["outstanding_count"] if member else "N/A"
+            print(f"[Processor] Sender region: '{region}', assigned to: {assigned_to} (outstanding: {load})")
 
     # ── Step 2: Parse with Claude ─────────────────────────────────────────────
     parsed = ai_parser.parse_email_request(subject, body)
@@ -472,9 +473,10 @@ def handle_clarification_reply(msg: dict, original_request: dict) -> None:
         return
 
     cr_routing.set_sender_region(sender_email, region)
-    members = cr_routing.get_cr_members_for_region(region)
-    assigned_to = members[0]["member_email"] if members else None
-    print(f"[Processor] Region '{region}' confirmed for {sender_email}, assigned to: {assigned_to}")
+    member = cr_routing.get_least_loaded_member(region)
+    assigned_to = member["member_email"] if member else None
+    load = member["outstanding_count"] if member else "N/A"
+    print(f"[Processor] Region '{region}' confirmed for {sender_email}, assigned to: {assigned_to} (outstanding: {load})")
 
     # Reconstruct parsed data from stored request fields
     original_parsed = {

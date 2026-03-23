@@ -51,7 +51,6 @@
                             Fund <span class="text-danger">*</span>
                         </label>
                         {% if fund_names %}
-                            <!-- Show a dropdown of funds already in the file library -->
                             <input list="fund_options" id="fund_name" name="fund_name"
                                    class="form-control" placeholder="Type or select a fund…" required>
                             <datalist id="fund_options">
@@ -85,7 +84,7 @@
                         <div class="form-text">Leave as "All vehicles" to approve for every vehicle.</div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label for="share_class" class="form-label fw-medium">Share Class</label>
                         <select id="share_class" name="share_class" class="form-select">
                             <option value="">All share classes</option>
@@ -100,6 +99,17 @@
                             <option value="Other">Other</option>
                         </select>
                         <div class="form-text">Leave as "All share classes" for a blanket approval.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="granted_by" class="form-label fw-medium">
+                            Your Email <span class="text-danger">*</span>
+                        </label>
+                        <input type="email" id="granted_by" name="granted_by"
+                               class="form-control" placeholder="yourname@firm.com" required>
+                        <div class="form-text">
+                            Recorded as the owner of this permission. Only you will be able to remove it.
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-success w-100">
@@ -142,6 +152,7 @@
                                 <th>Fund</th>
                                 <th>Vehicle</th>
                                 <th>Share Class</th>
+                                <th>Granted By</th>
                                 <th>Added</th>
                                 <th></th>
                             </tr>
@@ -170,14 +181,30 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-muted small">
+                                    {% if perm.granted_by %}
+                                        <i class="bi bi-person me-1"></i>{{ perm.granted_by }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted small">
                                     {{ perm.added_date[:10] if perm.added_date else '—' }}
                                 </td>
                                 <td>
+                                    <!-- Revoke form: requires the granter's email to confirm -->
                                     <form method="POST"
                                           action="{{ url_for('dashboard.remove_permission', perm_id=perm.id) }}"
-                                          onsubmit="return confirm('Remove approval for {{ perm.email_address }}?')">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"
-                                                title="Remove">
+                                          class="d-flex align-items-center gap-1"
+                                          onsubmit="return validateRevoke(this, '{{ perm.granted_by or '' }}')">
+                                        <input type="email"
+                                               name="confirm_email"
+                                               class="form-control form-control-sm"
+                                               placeholder="{% if perm.granted_by %}{{ perm.granted_by }}{% else %}Your email{% endif %}"
+                                               title="Enter {% if perm.granted_by %}{{ perm.granted_by }}'s{% else %}your{% endif %} email to confirm removal"
+                                               style="width: 170px; font-size: 0.75rem;">
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-danger border-0 flex-shrink-0"
+                                                title="Remove permission">
                                             <i class="bi bi-x-circle"></i>
                                         </button>
                                     </form>
@@ -199,4 +226,35 @@
     </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    /**
+     * Client-side pre-check before submitting a revoke form.
+     * If the permission has a recorded granter, require the typed email to match.
+     * The server enforces this rule authoritatively — this is just a UX guard.
+     */
+    function validateRevoke(form, storedGranter) {
+        const input = form.querySelector('input[name="confirm_email"]');
+        const typed = (input.value || '').toLowerCase().trim();
+
+        if (!typed) {
+            alert('Please enter your email address to confirm removal.');
+            input.focus();
+            return false;
+        }
+
+        if (storedGranter && typed !== storedGranter.toLowerCase().trim()) {
+            alert(
+                'This permission was granted by ' + storedGranter + '.\n' +
+                'Only they can remove it — enter their email to confirm.'
+            );
+            input.focus();
+            return false;
+        }
+
+        return true;
+    }
+</script>
 {% endblock %}
