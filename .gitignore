@@ -31,3 +31,6 @@ uploads/
 .vscode/
 .idea/
 *.swp
+
+# Claude Code local settings
+.claude/
