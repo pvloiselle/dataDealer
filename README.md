@@ -56,7 +56,7 @@ When multiple CR team members cover different geographic regions, DataDealer can
 - **Review queue** — Forwarded requests visible in the dashboard for human follow-up; admin can re-run matching after uploading new files
 - **Public vs. restricted files** — Public files (e.g. mutual fund factsheets) bypass the permission check entirely
 - **AI metadata suggestions** — When uploading a file, Claude analyzes the content and pre-fills the metadata form
-- **Admin password protection** — Dashboard management pages require authentication
+- **Multi-user authentication** — Role-based login system with two roles: `admin` (full access) and `cr_member` (scoped to their assigned requests). Accounts managed via the Users page; initial admin seeded from env vars on first startup
 
 ---
 
@@ -114,7 +114,8 @@ Copy `.env.example` to `.env` and fill in these values:
 | `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key — get it from [console.anthropic.com](https://console.anthropic.com) |
 | `GMAIL_INBOX_EMAIL` | Yes | The dedicated Gmail address DataDealer monitors for incoming requests |
 | `CONSULTANT_EMAIL` | Yes | Fallback email for forwarded requests when CR routing is not configured |
-| `ADMIN_PASSWORD` | Yes | Password to access management pages (Upload, Permissions, Config) |
+| `ADMIN_EMAIL` | Yes | Email address for the initial admin account created on first startup |
+| `ADMIN_PASSWORD` | Yes | Password for the initial admin account. After first run, manage all accounts via the Users page |
 | `SECRET_KEY` | Yes | Random string for Flask session security — run `python -c "import secrets; print(secrets.token_hex(32))"` to generate one |
 | `SIMILARITY_THRESHOLD` | No | Minimum cosine similarity to consider a file a candidate match (default: `0.65`) |
 | `HIGH_CONFIDENCE_THRESHOLD` | No | Score above which a match triggers auto-send, assuming sender is approved and parse confidence is high (default: `0.82`) |
@@ -142,13 +143,15 @@ DataDealer will write these to the expected paths on startup if the files don't 
 
 | Page | Who can access | What it does |
 |---|---|---|
-| **Dashboard** | Anyone | System overview: request counts, auto-send rate, files indexed, stale file warnings |
-| **Upload Files** | Admin | Upload new files, set metadata (firm, fund, vehicle, data type, access level), supersede old versions |
-| **Strategies** | Anyone | Browse all strategies ever uploaded in a collapsible hierarchy; manage permissions per fund |
-| **Permissions** | Admin | Approve specific consultants to receive auto-responses for specific funds/vehicles/share classes |
-| **Config** | Admin | Configure CR regions, assign team members, view known sender profiles and current load counts |
-| **Review Queue** | Anyone | View forwarded and flagged requests waiting for human action; mark as handled; re-run matching |
-| **Request Log** | Anyone | Full audit trail of every email received, parsed, and routed |
+| **Dashboard** | All logged-in users | Admins see system-wide stats (total requests, auto-sent, forwarded, files indexed, stale files). CR members see their own queue stats (assigned, needs attention, resolved) |
+| **Strategies** | All logged-in users | Browse all strategies ever uploaded in a collapsible hierarchy; manage permissions per fund |
+| **Review Queue** | All logged-in users | Admins see all forwarded/flagged requests and can filter by assignee. CR members see only their own assigned requests |
+| **Request Log** | All logged-in users | Admins see full audit trail. CR members see only their assigned requests |
+| **Upload Files** | Admin only | Upload new files, set metadata (firm, fund, vehicle, data type, access level), supersede old versions |
+| **Permissions** | Admin only | Approve specific consultants to receive auto-responses for specific funds/vehicles/share classes |
+| **Config** | Admin only | Configure CR regions, assign team members, view known sender profiles and current load counts |
+| **Users** | Admin only | Create accounts, reset passwords, deactivate/reactivate users |
+| **Change Password** | All logged-in users | Self-service password change |
 
 ---
 
@@ -163,6 +166,7 @@ DataDealer will write these to the expected paths on startup if the files don't 
 | `cr_regions` | Named geographic regions for CR routing |
 | `cr_assignments` | CR team members assigned to each region |
 | `sender_profiles` | Known sender → region mappings (saved after region clarification) |
+| `users` | Dashboard user accounts (email, hashed password, role, active status) |
 
 ---
 
