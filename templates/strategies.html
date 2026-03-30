@@ -393,6 +393,7 @@
 
 {% block scripts %}
 <script>
+const CURRENT_USER_EMAIL = {{ session.get('user_email', '') | tojson }};
 // ── Upload modal: pre-fill fields from data-* attributes ─────────────────────
 document.querySelectorAll('.upload-btn').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -611,7 +612,7 @@ function addPermission() {
     fetch('/strategies/permissions/add', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, firm: _infoFirm, fund: _infoFund, vehicle, share_class: shareClass })
+        body: JSON.stringify({ email, firm: _infoFirm, fund: _infoFund, vehicle, share_class: shareClass, granted_by: CURRENT_USER_EMAIL })
     })
     .then(r => {
         if (r.status === 403) { handleAuthRequired(); return null; }
@@ -644,9 +645,22 @@ function addPermission() {
 }
 
 function removePermission(id) {
-    fetch('/strategies/permissions/' + id + '/remove', { method: 'POST' })
+    fetch('/strategies/permissions/' + id + '/remove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ confirm_email: CURRENT_USER_EMAIL })
+    })
     .then(r => {
-        if (r.status === 403) { handleAuthRequired(); return null; }
+        if (r.status === 403) {
+            return r.json().then(data => {
+                if (data && data.error && data.auth_required === false) {
+                    alert(data.error);
+                } else {
+                    handleAuthRequired();
+                }
+                return null;
+            });
+        }
         return r.json();
     })
     .then(data => {
@@ -654,6 +668,8 @@ function removePermission(id) {
         if (data.success) {
             const row = document.getElementById('perm-row-' + id);
             if (row) row.remove();
+        } else if (data.error) {
+            alert(data.error);
         }
     })
     .catch(() => {});

@@ -2,13 +2,83 @@
 {% block title %}Dashboard — DataDealer{% endblock %}
 
 {% block content %}
+
+{% if must_change_password %}
+<div class="alert alert-warning border-0 d-flex align-items-center gap-2 mb-0 rounded-0" role="alert"
+     style="border-radius: 0 !important; margin: -2.25rem -2.75rem 2.25rem; padding: 0.75rem 2.75rem;">
+    <i class="bi bi-key-fill text-warning"></i>
+    <span>Your password was set by an administrator. <strong>Please <a href="{{ url_for('dashboard.change_own_password') }}">change it now</a></strong> to secure your account.</span>
+</div>
+{% endif %}
+
 <div class="page-header">
     <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
-    <p class="text-muted mb-0">System overview — emails received, processed, and pending review.</p>
+    <p class="text-muted mb-0">
+        {% if session.get('user_role') == 'cr_member' %}
+            Your assigned requests — pending, resolved, and recent activity.
+        {% else %}
+            System overview — emails received, processed, and pending review.
+        {% endif %}
+    </p>
 </div>
 
 <!-- ── Summary stat cards ── -->
 <div class="row g-3 mb-4">
+
+{% if session.get('user_role') == 'cr_member' %}
+
+    <div class="col-md-4">
+        <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #2563eb;">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <span class="text-muted small">My Requests</span>
+                    <div class="stat-icon-badge" style="background: rgba(37,99,235,0.08);">
+                        <i class="bi bi-envelope-open" style="color: #2563eb;"></i>
+                    </div>
+                </div>
+                <div class="stat-number" style="color: #2563eb;">{{ total_requests }}</div>
+                <p class="text-muted small mt-2 mb-0">Total assigned to you</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #f59e0b;">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <span class="text-muted small">Needs Attention</span>
+                    <div class="stat-icon-badge" style="background: rgba(245,158,11,0.08);">
+                        <i class="bi bi-flag" style="color: #f59e0b;"></i>
+                    </div>
+                </div>
+                <div class="stat-number" style="color: #f59e0b;">{{ forwarded_count }}</div>
+                <p class="text-muted small mt-2 mb-0">
+                    {% if forwarded_count > 0 %}
+                        <a href="{{ url_for('dashboard.review') }}">View queue →</a>
+                    {% else %}
+                        Queue is clear
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #10b981;">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <span class="text-muted small">Resolved</span>
+                    <div class="stat-icon-badge" style="background: rgba(16,185,129,0.08);">
+                        <i class="bi bi-check-circle" style="color: #10b981;"></i>
+                    </div>
+                </div>
+                <div class="stat-number" style="color: #10b981;">{{ resolved_count }}</div>
+                <p class="text-muted small mt-2 mb-0">Marked as handled</p>
+            </div>
+        </div>
+    </div>
+
+{% else %}
 
     <div class="col-md-3">
         <div class="card stat-card stat-card-accent h-100" style="--stat-accent-color: #2563eb;">
@@ -98,6 +168,8 @@
             </div>
         </div>
     </div>
+
+{% endif %}
 
 </div>
 

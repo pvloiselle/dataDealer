@@ -70,6 +70,8 @@ def create_app():
     # Creates tables if they don't exist. Safe to call every startup.
     with app.app_context():
         init_db()
+        from modules.database import seed_admin_from_env
+        seed_admin_from_env()
 
     # ── Register routes ───────────────────────────────────────────────────────
     # All UI routes are defined in modules/dashboard.py

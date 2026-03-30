@@ -68,6 +68,10 @@ FRESHNESS_GRACE_PERIOD_DAYS = int(os.getenv("FRESHNESS_GRACE_PERIOD_DAYS", "14")
 # Set via environment variable. If empty, admin auth is disabled (dev convenience).
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
+# Email address for the initial admin account seeded on first startup.
+# Only used once — after the users table has an active admin, this is ignored.
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
+
 # ── Notifications ─────────────────────────────────────────────────────────────
 # Email address to notify when a request enters the pending_clarification queue.
 # Leave blank to disable queue notifications.

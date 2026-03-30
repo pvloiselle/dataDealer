@@ -1,81 +1,123 @@
 """
 dashboard.py — All Flask web routes (the admin UI)
 ────────────────────────────────────────────────────
-This is a Flask "Blueprint" — a self-contained set of routes that gets
-registered onto the main app in app.py.
-
 Routes:
-  GET  /                      → Dashboard overview (stats)
-  GET  /upload                → File upload form
-  POST /upload                → Handle file upload submission
-  POST /files/<id>/delete     → Delete a file
-  GET  /permissions           → Manage approved email addresses
-  POST /permissions/add       → Add a new permission
-  POST /permissions/<id>/remove → Remove a permission
-  GET  /log                   → Full request log
-  GET  /review                → Queue of flagged requests needing human review
-  POST /review/<id>/handled   → Mark a flagged request as reviewed/handled
+  GET/POST /admin/login           → Login page (admin + CR members)
+  POST     /admin/logout          → Log out
+  GET      /                      → Dashboard overview (role-scoped)
+  GET      /upload                → File upload form
+  POST     /upload                → Handle file upload submission
+  POST     /files/<id>/delete     → Delete a file
+  GET      /permissions           → Manage approved email addresses
+  POST     /permissions/add       → Add a new permission
+  POST     /permissions/<id>/remove → Remove a permission
+  GET      /log                   → Full request log (role-scoped)
+  GET      /review                → Queue of forwarded requests (role-scoped)
+  POST     /review/<id>/handled   → Mark a request as reviewed
+  GET      /strategies            → Strategy browser
+  GET      /config                → CR routing configuration
+  GET      /admin/users           → User account management
+  POST     /admin/users/create    → Create a new user
+  POST     /admin/users/<id>/deactivate  → Deactivate a user
+  POST     /admin/users/<id>/reactivate  → Reactivate a user
+  POST     /admin/users/<id>/reset-password → Admin resets a user's password
+  GET/POST /account/change-password → Self-service password change
 """
 
 import datetime
 import functools
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import config
 from modules import file_manager, permissions
 from modules.database import get_db
 
-# Create the Blueprint — all routes below are registered on this object
 bp = Blueprint("dashboard", __name__)
 
 
-# ── Admin Auth ─────────────────────────────────────────────────────────────────
+# ── Auth Decorators ────────────────────────────────────────────────────────────
 
-def require_admin(f):
-    """
-    Decorator that blocks access unless the user has authenticated as admin.
-    JSON endpoints (Accept: application/json or AJAX fetch) receive a 403 JSON
-    response so the client can redirect to the login page gracefully.
-    Regular form endpoints redirect to /admin/login with a `next` param.
-    If ADMIN_PASSWORD is not configured, all requests pass through (dev mode).
-    """
+def require_login(f):
+    """Any authenticated user (admin or cr_member) passes. Unauthenticated → login."""
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         if not config.ADMIN_PASSWORD:
-            return f(*args, **kwargs)  # auth disabled
-        if session.get("is_admin"):
-            return f(*args, **kwargs)  # already authenticated
-
+            return f(*args, **kwargs)  # auth disabled (dev mode)
+        if session.get("user_role") in ("admin", "cr_member"):
+            return f(*args, **kwargs)
         wants_json = (
             request.is_json
             or request.headers.get("Accept", "").startswith("application/json")
             or request.headers.get("X-Requested-With") == "XMLHttpRequest"
         )
         if wants_json:
-            return jsonify({"error": "Admin authentication required.", "auth_required": True}), 403
-
-        return redirect(url_for("dashboard.admin_login", next=request.url))
+            return jsonify({"error": "Authentication required.", "auth_required": True}), 403
+        return redirect(url_for("dashboard.login", next=request.url))
     return decorated
 
 
+def require_admin(f):
+    """Admin role only. CR members get a flash error + redirect. Unauthenticated → login."""
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if not config.ADMIN_PASSWORD:
+            return f(*args, **kwargs)  # auth disabled (dev mode)
+        if session.get("user_role") == "admin":
+            return f(*args, **kwargs)
+        wants_json = (
+            request.is_json
+            or request.headers.get("Accept", "").startswith("application/json")
+            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+        if session.get("user_role") == "cr_member":
+            if wants_json:
+                return jsonify({"error": "Admin access required.", "auth_required": False}), 403
+            flash("This page is restricted to administrators.", "error")
+            return redirect(url_for("dashboard.index"))
+        if wants_json:
+            return jsonify({"error": "Admin authentication required.", "auth_required": True}), 403
+        return redirect(url_for("dashboard.login", next=request.url))
+    return decorated
+
+
+# ── Login / Logout ─────────────────────────────────────────────────────────────
+
 @bp.route("/admin/login", methods=["GET", "POST"])
-def admin_login():
-    """Admin password login page."""
-    if not config.ADMIN_PASSWORD:
-        # Auth not configured — skip straight to dashboard
+def login():
+    """Login page — used by both admins and CR members."""
+    if session.get("user_role"):
         return redirect(url_for("dashboard.index"))
 
     error = None
     if request.method == "POST":
+        email    = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        if password == config.ADMIN_PASSWORD:
-            session["is_admin"] = True
+
+        conn = get_db()
+        user = conn.execute(
+            "SELECT * FROM users WHERE LOWER(email) = ? AND is_active = 1", (email,)
+        ).fetchone()
+
+        if user and check_password_hash(user["password_hash"], password):
+            session.clear()
+            session["user_id"]    = user["id"]
+            session["user_email"] = user["email"]
+            session["user_name"]  = user["name"]
+            session["user_role"]  = user["role"]
+            conn.execute(
+                "UPDATE users SET last_login = ? WHERE id = ?",
+                (datetime.datetime.now().isoformat(), user["id"])
+            )
+            conn.commit()
+            conn.close()
             next_url = request.form.get("next") or url_for("dashboard.index")
-            # Safety: only allow relative paths to prevent open redirects
             if not next_url.startswith("/"):
                 next_url = url_for("dashboard.index")
             return redirect(next_url)
-        error = "Incorrect password."
+
+        conn.close()
+        error = "Incorrect email or password."
 
     next_url = request.args.get("next", "")
     return render_template("admin_login.html", error=error, next_url=next_url)
@@ -83,41 +125,66 @@ def admin_login():
 
 @bp.route("/admin/logout", methods=["POST"])
 def admin_logout():
-    """Clear admin session."""
-    session.pop("is_admin", None)
-    flash("Logged out of admin session.", "success")
-    return redirect(url_for("dashboard.index"))
+    """Log out — clears all session keys."""
+    session.clear()
+    flash("You have been logged out.", "success")
+    return redirect(url_for("dashboard.login"))
 
 
-# ── Overview Dashboard ────────────────────────────────────────────────────────
+# ── Overview Dashboard ─────────────────────────────────────────────────────────
 
 @bp.route("/")
+@require_login
 def index():
-    """Main dashboard page — shows summary statistics."""
-    conn = get_db()
+    """Main dashboard — stats scoped by role."""
+    conn   = get_db()
+    role   = session.get("user_role")
+    email  = session.get("user_email")
 
-    total_files = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
-    total_requests = conn.execute("SELECT COUNT(*) FROM requests").fetchone()[0]
-    auto_fulfilled = conn.execute(
-        "SELECT COUNT(*) FROM requests WHERE status = 'auto_sent'"
-    ).fetchone()[0]
-    forwarded_count = conn.execute(
-        "SELECT COUNT(*) FROM requests WHERE status = 'forwarded'"
-    ).fetchone()[0]
-    total_permissions = conn.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
-
-    # Recent requests for the mini-log on the dashboard
-    recent_requests = conn.execute(
-        """
-        SELECT sender_email, subject, status, received_at, parse_summary
-        FROM requests ORDER BY received_at DESC LIMIT 10
-        """
-    ).fetchall()
+    if role == "admin":
+        total_requests    = conn.execute("SELECT COUNT(*) FROM requests").fetchone()[0]
+        auto_fulfilled    = conn.execute("SELECT COUNT(*) FROM requests WHERE status='auto_sent'").fetchone()[0]
+        forwarded_count   = conn.execute("SELECT COUNT(*) FROM requests WHERE status='forwarded'").fetchone()[0]
+        total_files       = conn.execute("SELECT COUNT(*) FROM files WHERE superseded_by IS NULL").fetchone()[0]
+        total_permissions = conn.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
+        resolved_count    = None
+        recent_requests   = conn.execute(
+            "SELECT sender_email, subject, status, received_at, parse_summary "
+            "FROM requests ORDER BY received_at DESC LIMIT 10"
+        ).fetchall()
+    else:
+        total_requests  = conn.execute(
+            "SELECT COUNT(*) FROM requests WHERE assigned_to = ?", (email,)
+        ).fetchone()[0]
+        forwarded_count = conn.execute(
+            "SELECT COUNT(*) FROM requests WHERE assigned_to = ? "
+            "AND status IN ('forwarded', 'flagged', 'pending_clarification')", (email,)
+        ).fetchone()[0]
+        resolved_count  = conn.execute(
+            "SELECT COUNT(*) FROM requests WHERE assigned_to = ? AND status = 'reviewed'", (email,)
+        ).fetchone()[0]
+        auto_fulfilled    = None
+        total_files       = None
+        total_permissions = None
+        recent_requests   = conn.execute(
+            "SELECT sender_email, subject, status, received_at, parse_summary "
+            "FROM requests WHERE assigned_to = ? ORDER BY received_at DESC LIMIT 10",
+            (email,)
+        ).fetchall()
 
     conn.close()
 
     from modules.file_manager import get_stale_files
-    stale_files = get_stale_files()
+    stale_files = get_stale_files() if role == "admin" else []
+
+    must_change_password = False
+    if role == "cr_member":
+        conn2 = get_db()
+        flag = conn2.execute(
+            "SELECT must_change_password FROM users WHERE id = ?", (session["user_id"],)
+        ).fetchone()
+        must_change_password = bool(flag and flag["must_change_password"])
+        conn2.close()
 
     return render_template(
         "index.html",
@@ -125,14 +192,16 @@ def index():
         total_requests=total_requests,
         auto_fulfilled=auto_fulfilled,
         forwarded_count=forwarded_count,
+        resolved_count=resolved_count,
         total_permissions=total_permissions,
         recent_requests=recent_requests,
         stale_files=stale_files,
         stale_count=len(stale_files),
+        must_change_password=must_change_password,
     )
 
 
-# ── File Upload ───────────────────────────────────────────────────────────────
+# ── File Upload ────────────────────────────────────────────────────────────────
 
 @bp.route("/upload")
 @require_admin
@@ -144,7 +213,6 @@ def upload():
         "SELECT DISTINCT firm_name FROM files WHERE firm_name != '' ORDER BY firm_name"
     ).fetchall()]
     conn.close()
-    # Pre-fill values when arriving from the Strategy Browser (all default to "" if absent)
     prefill = {
         "firm_name":        request.args.get("firm", ""),
         "investment_style": request.args.get("style", ""),
@@ -155,7 +223,7 @@ def upload():
         "share_class":      request.args.get("share_class", ""),
         "update_cadence":   request.args.get("update_cadence", ""),
     }
-    from_strategy = any(prefill.values())  # tell template whether we came from the browser
+    from_strategy = any(prefill.values())
     return render_template("upload.html", files=files, firm_names=firm_names,
                            prefill=prefill, from_strategy=from_strategy)
 
@@ -164,23 +232,22 @@ def upload():
 @require_admin
 def upload_post():
     """Handle a file upload form submission."""
-    uploaded_file = request.files.get("file")
-    firm_name = request.form.get("firm_name", "").strip()
-    asset_class = request.form.get("asset_class", "").strip()
-    region = request.form.get("region", "").strip()
-    fund_name = request.form.get("fund_name", "").strip()
-    vehicle = request.form.get("vehicle", "").strip()
-    share_class = request.form.get("share_class", "").strip()
+    uploaded_file    = request.files.get("file")
+    firm_name        = request.form.get("firm_name", "").strip()
+    asset_class      = request.form.get("asset_class", "").strip()
+    region           = request.form.get("region", "").strip()
+    fund_name        = request.form.get("fund_name", "").strip()
+    vehicle          = request.form.get("vehicle", "").strip()
+    share_class      = request.form.get("share_class", "").strip()
     investment_style = request.form.get("investment_style", "Not Applicable").strip()
-    data_type = request.form.get("data_type", "").strip()
-    time_period = request.form.get("time_period", "").strip()
-    access_level = request.form.get("access_level", "restricted").strip()
-    description = request.form.get("description", "").strip()
-    update_cadence = request.form.get("update_cadence", "").strip()
-    raw = request.form.get("supersede_file_id", "").strip()
+    data_type        = request.form.get("data_type", "").strip()
+    time_period      = request.form.get("time_period", "").strip()
+    access_level     = request.form.get("access_level", "restricted").strip()
+    description      = request.form.get("description", "").strip()
+    update_cadence   = request.form.get("update_cadence", "").strip()
+    raw              = request.form.get("supersede_file_id", "").strip()
     supersede_file_id = int(raw) if raw.isdigit() else None
-
-    return_to = request.form.get("_return_to", "upload")
+    return_to        = request.form.get("_return_to", "upload")
 
     if not uploaded_file or uploaded_file.filename == "":
         flash("Please select a file to upload.", "error")
@@ -230,18 +297,14 @@ def upload_post():
 
 
 @bp.route("/upload/analyze", methods=["POST"])
+@require_admin
 def upload_analyze():
-    """
-    AI-assisted metadata suggestion endpoint.
-    Accepts a file upload, reads its content, and returns Claude's suggested
-    metadata tags as JSON. The client pre-fills the upload form with these.
-    Access level is intentionally excluded — that is always a human decision.
-    """
+    """AI-assisted metadata suggestion endpoint."""
     uploaded_file = request.files.get("file")
     if not uploaded_file or uploaded_file.filename == "":
         return jsonify({}), 400
 
-    filename = uploaded_file.filename
+    filename   = uploaded_file.filename
     file_bytes = uploaded_file.read()
 
     try:
@@ -258,23 +321,16 @@ def upload_analyze():
 @bp.route("/upload/check-duplicate")
 @require_admin
 def upload_check_duplicate():
-    """
-    Return JSON list of active (non-superseded) files matching the given
-    firm/fund/data_type combination. Used by the duplicate-detection UI.
-    """
-    firm = request.args.get("firm", "").strip()
-    fund = request.args.get("fund", "").strip()
+    """Return JSON list of active files matching the given firm/fund/data_type."""
+    firm      = request.args.get("firm", "").strip()
+    fund      = request.args.get("fund", "").strip()
     data_type = request.args.get("data_type", "").strip()
 
     if not firm and not fund and not data_type:
         return jsonify([])
 
-    conn = get_db()
-    query = (
-        "SELECT id, filename, upload_date, time_period "
-        "FROM files "
-        "WHERE superseded_by IS NULL"
-    )
+    conn   = get_db()
+    query  = "SELECT id, filename, upload_date, time_period FROM files WHERE superseded_by IS NULL"
     params = []
     if firm:
         query += " AND firm_name = ?"
@@ -303,9 +359,10 @@ def delete_file(file_id):
     return redirect(url_for("dashboard.upload"))
 
 
-# ── Permissions ───────────────────────────────────────────────────────────────
+# ── Permissions ────────────────────────────────────────────────────────────────
 
 @bp.route("/permissions")
+@require_admin
 def permissions_page():
     """Show the permissions management page."""
     all_perms = permissions.get_all_permissions()
@@ -328,11 +385,11 @@ def permissions_page():
 def add_permission():
     """Add a new approved email → firm/fund/vehicle/share class mapping."""
     email_address = request.form.get("email_address", "").strip()
-    firm_name = request.form.get("firm_name", "").strip()
-    fund_name = request.form.get("fund_name", "").strip()
-    vehicle = request.form.get("vehicle", "").strip()
-    share_class = request.form.get("share_class", "").strip()
-    granted_by = request.form.get("granted_by", "").strip()
+    firm_name     = request.form.get("firm_name", "").strip()
+    fund_name     = request.form.get("fund_name", "").strip()
+    vehicle       = request.form.get("vehicle", "").strip()
+    share_class   = request.form.get("share_class", "").strip()
+    granted_by    = request.form.get("granted_by", "").strip()
 
     if not email_address or not fund_name:
         flash("Email address and fund name are required.", "error")
@@ -364,93 +421,125 @@ def remove_permission(perm_id):
     return redirect(url_for("dashboard.permissions_page"))
 
 
-# ── Request Log ───────────────────────────────────────────────────────────────
+# ── Request Log ────────────────────────────────────────────────────────────────
 
 @bp.route("/log")
+@require_login
 def log():
-    """Show the full request log."""
-    conn = get_db()
-    all_requests = conn.execute(
-        """
-        SELECT r.*, f.filename as matched_filename
-        FROM requests r
-        LEFT JOIN files f ON r.matched_file_id = f.id
-        ORDER BY r.received_at DESC
-        """
-    ).fetchall()
+    """Show the full request log, scoped by role."""
+    conn  = get_db()
+    role  = session.get("user_role")
+    email = session.get("user_email")
+
+    if role == "admin":
+        all_requests = conn.execute(
+            "SELECT r.*, f.filename as matched_filename "
+            "FROM requests r LEFT JOIN files f ON r.matched_file_id = f.id "
+            "ORDER BY r.received_at DESC"
+        ).fetchall()
+    else:
+        all_requests = conn.execute(
+            "SELECT r.*, f.filename as matched_filename "
+            "FROM requests r LEFT JOIN files f ON r.matched_file_id = f.id "
+            "WHERE r.assigned_to = ? "
+            "ORDER BY r.received_at DESC",
+            (email,)
+        ).fetchall()
+
     conn.close()
     return render_template("log.html", requests=all_requests)
 
 
 @bp.route("/log/<int:request_id>/preview")
+@require_login
 def log_preview(request_id):
     """Return JSON preview of the sent/forwarded email for a log entry."""
-    conn = get_db()
-    row = conn.execute("SELECT draft_id FROM requests WHERE id = ?", (request_id,)).fetchone()
+    conn  = get_db()
+    role  = session.get("user_role")
+    email = session.get("user_email")
+    row   = conn.execute(
+        "SELECT draft_id, assigned_to FROM requests WHERE id = ?", (request_id,)
+    ).fetchone()
     conn.close()
+
     if not row or not row["draft_id"]:
         return jsonify({"error": "No message ID recorded for this request."})
+    if role == "cr_member" and row["assigned_to"] != email:
+        return jsonify({"error": "Not authorised to view this message."}), 403
+
     from modules.email_handler import get_sent_message_preview
     preview = get_sent_message_preview(row["draft_id"])
     return jsonify(preview)
 
 
-# ── Review Queue ──────────────────────────────────────────────────────────────
+# ── Review Queue ───────────────────────────────────────────────────────────────
 
 @bp.route("/review")
+@require_login
 def review():
-    """Show the queue of flagged requests waiting for human review."""
-    conn = get_db()
-    assignee = request.args.get("assignee", "")
+    """Forwarded request queue, scoped by role."""
+    conn  = get_db()
+    role  = session.get("user_role")
+    email = session.get("user_email")
 
-    if assignee:
+    base_where = "r.status IN ('forwarded', 'flagged', 'pending_clarification')"
+
+    if role == "cr_member":
         flagged = conn.execute(
-            """
-            SELECT r.*, f.filename as matched_filename, f.file_path as matched_file_path
-            FROM requests r
-            LEFT JOIN files f ON r.matched_file_id = f.id
-            WHERE r.status IN ('forwarded', 'flagged', 'pending_clarification')
-              AND r.assigned_to = ?
-            ORDER BY r.received_at DESC
-            """,
-            (assignee,)
+            f"SELECT r.*, f.filename as matched_filename, f.file_path as matched_file_path "
+            f"FROM requests r LEFT JOIN files f ON r.matched_file_id = f.id "
+            f"WHERE {base_where} AND r.assigned_to = ? "
+            f"ORDER BY r.received_at DESC",
+            (email,)
         ).fetchall()
+        assignees = []
+        assignee  = email
     else:
-        flagged = conn.execute(
-            """
-            SELECT r.*, f.filename as matched_filename, f.file_path as matched_file_path
-            FROM requests r
-            LEFT JOIN files f ON r.matched_file_id = f.id
-            WHERE r.status IN ('forwarded', 'flagged', 'pending_clarification')
-            ORDER BY r.received_at DESC
-            """
+        assignee = request.args.get("assignee", "")
+        if assignee:
+            flagged = conn.execute(
+                f"SELECT r.*, f.filename as matched_filename, f.file_path as matched_file_path "
+                f"FROM requests r LEFT JOIN files f ON r.matched_file_id = f.id "
+                f"WHERE {base_where} AND r.assigned_to = ? "
+                f"ORDER BY r.received_at DESC",
+                (assignee,)
+            ).fetchall()
+        else:
+            flagged = conn.execute(
+                f"SELECT r.*, f.filename as matched_filename, f.file_path as matched_file_path "
+                f"FROM requests r LEFT JOIN files f ON r.matched_file_id = f.id "
+                f"WHERE {base_where} ORDER BY r.received_at DESC"
+            ).fetchall()
+        assignees_rows = conn.execute(
+            "SELECT DISTINCT assigned_to FROM requests "
+            "WHERE assigned_to IS NOT NULL AND assigned_to != '' "
+            "AND status IN ('forwarded', 'flagged', 'pending_clarification') "
+            "ORDER BY assigned_to"
         ).fetchall()
-
-    # Get distinct assigned_to values for the filter dropdown
-    assignees_rows = conn.execute(
-        """
-        SELECT DISTINCT assigned_to FROM requests
-        WHERE assigned_to IS NOT NULL AND assigned_to != ''
-          AND status IN ('forwarded', 'flagged', 'pending_clarification')
-        ORDER BY assigned_to
-        """
-    ).fetchall()
-    assignees = [r[0] for r in assignees_rows]
+        assignees = [r[0] for r in assignees_rows]
 
     conn.close()
     return render_template("review.html", flagged=flagged, assignee=assignee, assignees=assignees)
 
 
 @bp.route("/review/<int:request_id>/handled", methods=["POST"])
+@require_login
 def mark_handled(request_id):
-    """Mark a flagged request as reviewed/handled by a human."""
+    """Mark a request as reviewed. CR members can only mark their own."""
     notes = request.form.get("notes", "").strip()
-    conn = get_db()
+    conn  = get_db()
+
+    if session.get("user_role") == "cr_member":
+        row = conn.execute(
+            "SELECT assigned_to FROM requests WHERE id = ?", (request_id,)
+        ).fetchone()
+        if not row or row["assigned_to"] != session.get("user_email"):
+            conn.close()
+            flash("You can only mark your own assigned requests as handled.", "error")
+            return redirect(url_for("dashboard.review"))
+
     conn.execute(
-        """
-        UPDATE requests SET status = 'reviewed', handled_at = ?, notes = ?
-        WHERE id = ?
-        """,
+        "UPDATE requests SET status = 'reviewed', handled_at = ?, notes = ? WHERE id = ?",
         (datetime.datetime.now().isoformat(), notes, request_id),
     )
     conn.commit()
@@ -464,7 +553,7 @@ def mark_handled(request_id):
 def reprocess_request(request_id):
     """Re-run file matching for a forwarded or flagged request."""
     conn = get_db()
-    row = conn.execute("SELECT status FROM requests WHERE id = ?", (request_id,)).fetchone()
+    row  = conn.execute("SELECT status FROM requests WHERE id = ?", (request_id,)).fetchone()
     conn.close()
 
     if not row or row["status"] not in ("forwarded", "flagged"):
@@ -480,16 +569,12 @@ def reprocess_request(request_id):
     return redirect(url_for("dashboard.review"))
 
 
-# ── Strategy Browser ──────────────────────────────────────────────────────────
+# ── Strategy Browser ───────────────────────────────────────────────────────────
 
 @bp.route("/strategies")
+@require_login
 def strategies():
-    """
-    Permanent strategy browser — shows every strategy ever uploaded,
-    organized as a collapsible hierarchy:
-    Firm → Investment Style → Asset Class → Region → Fund → Vehicle
-    Strategies persist even when the underlying files are deleted.
-    """
+    """Permanent strategy browser — hierarchical view of all strategies."""
     conn = get_db()
     rows = conn.execute(
         """
@@ -514,9 +599,6 @@ def strategies():
     ).fetchall()
     conn.close()
 
-    # Build nested tree:
-    # tree[firm][investment_style][asset_class][region][fund_name]
-    #   = list of {"vehicle": ..., "share_class": ..., "file_count": ..., "access_levels": [...]}
     tree = {}
     for row in rows:
         row = dict(row)
@@ -539,7 +621,6 @@ def strategies():
                 "access_levels": levels,
             })
 
-    # Build stale fund keys set: "firm|fund_name" for funds with stale files
     from modules.file_manager import get_stale_files
     stale_rows = get_stale_files()
     stale_fund_keys = set()
@@ -550,47 +631,33 @@ def strategies():
 
 
 @bp.route("/strategies/details")
+@require_login
 def strategy_details():
-    """
-    Returns JSON with file descriptions and permissions for a given fund.
-    Called by the info modal in the Strategy Browser.
-    """
-    firm      = request.args.get("firm", "")
-    fund      = request.args.get("fund", "")
-    vehicle   = request.args.get("vehicle", "")
+    """Returns JSON with file descriptions and permissions for a given fund."""
+    firm    = request.args.get("firm", "")
+    fund    = request.args.get("fund", "")
+    vehicle = request.args.get("vehicle", "")
 
     conn = get_db()
 
-    # Files for this fund (optionally filtered to a specific vehicle)
     if vehicle:
         files = conn.execute(
-            """
-            SELECT filename, description, access_level, data_type, time_period
-            FROM files
-            WHERE firm_name=? AND fund_name=? AND vehicle=?
-            ORDER BY upload_date DESC
-            """,
+            "SELECT filename, description, access_level, data_type, time_period "
+            "FROM files WHERE firm_name=? AND fund_name=? AND vehicle=? ORDER BY upload_date DESC",
             (firm, fund, vehicle),
         ).fetchall()
     else:
         files = conn.execute(
-            """
-            SELECT filename, description, access_level, data_type, time_period
-            FROM files
-            WHERE firm_name=? AND fund_name=?
-            ORDER BY upload_date DESC
-            """,
+            "SELECT filename, description, access_level, data_type, time_period "
+            "FROM files WHERE firm_name=? AND fund_name=? ORDER BY upload_date DESC",
             (firm, fund),
         ).fetchall()
 
-    # Approved senders for this fund
     perms = conn.execute(
-        """
-        SELECT email_address, vehicle, share_class
-        FROM permissions
-        WHERE fund_name=? AND (firm_name=? OR firm_name IS NULL OR firm_name='')
-        ORDER BY email_address
-        """,
+        "SELECT id, email_address, vehicle, share_class, granted_by "
+        "FROM permissions "
+        "WHERE fund_name=? AND (firm_name=? OR firm_name IS NULL OR firm_name='') "
+        "ORDER BY email_address",
         (fund, firm),
     ).fetchall()
 
@@ -606,7 +673,7 @@ def strategy_details():
 @require_admin
 def strategies_add_permission():
     """AJAX: add a permission from the Strategy Browser info modal."""
-    data = request.get_json() or {}
+    data       = request.get_json() or {}
     email      = (data.get("email") or "").strip()
     firm       = (data.get("firm") or "").strip()
     fund       = (data.get("fund") or "").strip()
@@ -627,7 +694,7 @@ def strategies_add_permission():
 @require_admin
 def strategies_remove_permission(perm_id):
     """AJAX: remove a permission from the Strategy Browser info modal."""
-    data = request.get_json() or {}
+    data          = request.get_json() or {}
     confirm_email = (data.get("confirm_email") or "").strip()
     success, reason = permissions.remove_permission(perm_id, confirm_email)
     if success:
@@ -635,17 +702,17 @@ def strategies_remove_permission(perm_id):
     return jsonify({"error": reason}), 403
 
 
-# ── Configuration Page ────────────────────────────────────────────────────────
+# ── Configuration Page ─────────────────────────────────────────────────────────
 
 @bp.route("/config")
 @require_admin
 def config_page():
     """CR routing configuration page."""
     from modules import cr_routing
-    regions = cr_routing.get_all_regions()
-    assignments = cr_routing.get_all_assignments()
+    regions         = cr_routing.get_all_regions()
+    assignments     = cr_routing.get_all_assignments()
     sender_profiles = cr_routing.get_all_sender_profiles()
-    load_counts = {
+    load_counts     = {
         r["region_name"]: cr_routing.get_member_load_counts(r["region_name"])
         for r in regions
     }
@@ -681,8 +748,8 @@ def config_remove_region(name):
 @bp.route("/config/assignments/add", methods=["POST"])
 @require_admin
 def config_add_assignment():
-    region_name = request.form.get("region_name", "").strip()
-    member_name = request.form.get("member_name", "").strip()
+    region_name  = request.form.get("region_name", "").strip()
+    member_name  = request.form.get("member_name", "").strip()
     member_email = request.form.get("member_email", "").strip()
     if not region_name or not member_name or not member_email:
         flash("Region, member name, and member email are all required.", "error")
@@ -703,3 +770,138 @@ def config_remove_assignment(assignment_id):
     else:
         flash("Assignment not found.", "error")
     return redirect(url_for("dashboard.config_page"))
+
+
+# ── User Management ────────────────────────────────────────────────────────────
+
+@bp.route("/admin/users")
+@require_admin
+def user_management():
+    """Account management page — admin only."""
+    conn  = get_db()
+    users = conn.execute(
+        "SELECT id, email, name, role, is_active, created_date, last_login, must_change_password "
+        "FROM users ORDER BY role DESC, name"
+    ).fetchall()
+    conn.close()
+    return render_template("users.html", users=users)
+
+
+@bp.route("/admin/users/create", methods=["POST"])
+@require_admin
+def create_user():
+    """Create a new user account."""
+    email    = request.form.get("email", "").strip().lower()
+    name     = request.form.get("name", "").strip()
+    role     = request.form.get("role", "cr_member").strip()
+    password = request.form.get("password", "").strip()
+
+    if not email or not name or not password:
+        flash("Email, name, and password are all required.", "error")
+        return redirect(url_for("dashboard.user_management"))
+    if role not in ("admin", "cr_member"):
+        flash("Invalid role.", "error")
+        return redirect(url_for("dashboard.user_management"))
+    if len(password) < 8:
+        flash("Password must be at least 8 characters.", "error")
+        return redirect(url_for("dashboard.user_management"))
+
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    if existing:
+        conn.close()
+        flash(f"A user with email {email} already exists.", "error")
+        return redirect(url_for("dashboard.user_management"))
+
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, must_change_password, created_date) "
+        "VALUES (?, ?, ?, ?, 1, 1, ?)",
+        (email, name, generate_password_hash(password), role, datetime.datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+    flash(f"Account created for {name} ({email}) as {role}. They will be prompted to change their password on first login.", "success")
+    return redirect(url_for("dashboard.user_management"))
+
+
+@bp.route("/admin/users/<int:user_id>/deactivate", methods=["POST"])
+@require_admin
+def deactivate_user(user_id):
+    """Soft-delete a user. Cannot deactivate yourself."""
+    if session.get("user_id") == user_id:
+        flash("You cannot deactivate your own account.", "error")
+        return redirect(url_for("dashboard.user_management"))
+    conn = get_db()
+    conn.execute("UPDATE users SET is_active = 0 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    flash("User deactivated.", "success")
+    return redirect(url_for("dashboard.user_management"))
+
+
+@bp.route("/admin/users/<int:user_id>/reactivate", methods=["POST"])
+@require_admin
+def reactivate_user(user_id):
+    """Reactivate a deactivated user."""
+    conn = get_db()
+    conn.execute("UPDATE users SET is_active = 1 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    flash("User reactivated.", "success")
+    return redirect(url_for("dashboard.user_management"))
+
+
+@bp.route("/admin/users/<int:user_id>/reset-password", methods=["POST"])
+@require_admin
+def reset_user_password(user_id):
+    """Admin sets a new password for any user (no old password required)."""
+    new_password = request.form.get("new_password", "").strip()
+    if len(new_password) < 8:
+        flash("Password must be at least 8 characters.", "error")
+        return redirect(url_for("dashboard.user_management"))
+    conn = get_db()
+    conn.execute(
+        "UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?",
+        (generate_password_hash(new_password), user_id)
+    )
+    conn.commit()
+    conn.close()
+    flash("Password reset. The user will be prompted to change it on next login.", "success")
+    return redirect(url_for("dashboard.user_management"))
+
+
+# ── Self-Service Password Change ───────────────────────────────────────────────
+
+@bp.route("/account/change-password", methods=["GET", "POST"])
+@require_login
+def change_own_password():
+    """Any logged-in user can change their own password."""
+    error = None
+    if request.method == "POST":
+        current = request.form.get("current_password", "")
+        new_pw  = request.form.get("new_password", "").strip()
+        confirm = request.form.get("confirm_password", "").strip()
+
+        if new_pw != confirm:
+            error = "New passwords do not match."
+        elif len(new_pw) < 8:
+            error = "Password must be at least 8 characters."
+        else:
+            conn = get_db()
+            user = conn.execute(
+                "SELECT * FROM users WHERE id = ?", (session["user_id"],)
+            ).fetchone()
+            if not check_password_hash(user["password_hash"], current):
+                error = "Current password is incorrect."
+                conn.close()
+            else:
+                conn.execute(
+                    "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
+                    (generate_password_hash(new_pw), session["user_id"])
+                )
+                conn.commit()
+                conn.close()
+                flash("Password changed successfully.", "success")
+                return redirect(url_for("dashboard.index"))
+
+    return render_template("change_password.html", error=error)

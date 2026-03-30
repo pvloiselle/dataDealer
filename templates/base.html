@@ -461,17 +461,9 @@
                    class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
-                <a href="{{ url_for('dashboard.upload') }}"
-                   class="nav-link {% if request.endpoint in ['dashboard.upload', 'dashboard.upload_post'] %}active{% endif %}">
-                    <i class="bi bi-cloud-upload"></i> Upload Files
-                </a>
                 <a href="{{ url_for('dashboard.strategies') }}"
                    class="nav-link {% if request.endpoint == 'dashboard.strategies' %}active{% endif %}">
                     <i class="bi bi-diagram-3"></i> Strategies
-                </a>
-                <a href="{{ url_for('dashboard.config_page') }}"
-                   class="nav-link {% if request.endpoint == 'dashboard.config_page' %}active{% endif %}">
-                    <i class="bi bi-gear"></i> Config
                 </a>
                 <a href="{{ url_for('dashboard.review') }}"
                    class="nav-link {% if request.endpoint == 'dashboard.review' %}active{% endif %}">
@@ -481,24 +473,50 @@
                    class="nav-link {% if request.endpoint == 'dashboard.log' %}active{% endif %}">
                     <i class="bi bi-journal-text"></i> Request Log
                 </a>
+                {% if session.get('user_role') == 'admin' %}
+                <div style="margin: 0.75rem 1.25rem 0.25rem; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; color: #475569; text-transform: uppercase;">Admin</div>
+                <a href="{{ url_for('dashboard.upload') }}"
+                   class="nav-link {% if request.endpoint in ['dashboard.upload', 'dashboard.upload_post'] %}active{% endif %}">
+                    <i class="bi bi-cloud-upload"></i> Upload Files
+                </a>
+                <a href="{{ url_for('dashboard.permissions_page') }}"
+                   class="nav-link {% if request.endpoint == 'dashboard.permissions_page' %}active{% endif %}">
+                    <i class="bi bi-shield-check"></i> Permissions
+                </a>
+                <a href="{{ url_for('dashboard.config_page') }}"
+                   class="nav-link {% if request.endpoint == 'dashboard.config_page' %}active{% endif %}">
+                    <i class="bi bi-gear"></i> Config
+                </a>
+                <a href="{{ url_for('dashboard.user_management') }}"
+                   class="nav-link {% if request.endpoint == 'dashboard.user_management' %}active{% endif %}">
+                    <i class="bi bi-people"></i> Users
+                </a>
+                {% endif %}
             </nav>
 
-            <!-- Admin session indicator -->
+            <!-- User session footer -->
             <div class="sidebar-admin-footer">
-                {% if session.get('is_admin') %}
+                {% if session.get('user_role') %}
+                <div class="mb-1" style="font-size: 0.78rem; color: #e2e8f0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ session.get('user_name', session.get('user_email', '')) }}
+                </div>
                 <div class="d-flex align-items-center justify-content-between">
-                    <span style="color: var(--accent-blue); font-size: 0.78rem;">
-                        <i class="bi bi-shield-fill-check me-1"></i>Admin
+                    <span style="color: {% if session.get('user_role') == 'admin' %}var(--accent-blue){% else %}#64748b{% endif %}; font-size: 0.72rem;">
+                        <i class="bi bi-{% if session.get('user_role') == 'admin' %}shield-fill-check{% else %}person-circle{% endif %} me-1"></i>
+                        {{ session.get('user_role', '') | replace('_', ' ') | title }}
                     </span>
                     <form method="POST" action="{{ url_for('dashboard.admin_logout') }}" class="m-0">
-                        <button type="submit" style="background:none;border:none;color:#94a3b8;font-size:0.78rem;cursor:pointer;padding:0;">
-                            <i class="bi bi-box-arrow-right me-1"></i>Log out
+                        <button type="submit" style="background:none;border:none;color:#94a3b8;font-size:0.78rem;cursor:pointer;padding:0;" title="Log out">
+                            <i class="bi bi-box-arrow-right"></i>
                         </button>
                     </form>
                 </div>
+                <a href="{{ url_for('dashboard.change_own_password') }}" style="color: #64748b; font-size: 0.72rem; text-decoration: none;">
+                    <i class="bi bi-key me-1"></i>Change password
+                </a>
                 {% else %}
-                <a href="{{ url_for('dashboard.admin_login') }}" style="color: #94a3b8; font-size: 0.78rem; text-decoration: none;">
-                    <i class="bi bi-shield me-1"></i>Admin login
+                <a href="{{ url_for('dashboard.login') }}" style="color: #94a3b8; font-size: 0.78rem; text-decoration: none;">
+                    <i class="bi bi-shield me-1"></i>Sign in
                 </a>
                 {% endif %}
             </div>

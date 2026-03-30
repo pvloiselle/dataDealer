@@ -116,7 +116,7 @@
             <i class="bi bi-shield-lock"></i>
         </div>
         <p class="login-brand mb-1">Data<span>Dealer</span></p>
-        <p style="color: #64748b; font-size: 0.8375rem; margin-bottom: 0;">Admin access required</p>
+        <p style="color: #64748b; font-size: 0.8375rem; margin-bottom: 0;">Sign in to your account</p>
     </div>
 
     {% if error %}
@@ -125,16 +125,22 @@
     </div>
     {% endif %}
 
-    <form method="POST" action="{{ url_for('dashboard.admin_login') }}">
+    <form method="POST" action="{{ url_for('dashboard.login') }}">
         <input type="hidden" name="next" value="{{ next_url }}">
         <div class="mb-3">
-            <label class="form-label" for="password">Admin Password</label>
+            <label class="form-label" for="email">Email address</label>
+            <input type="email" id="email" name="email"
+                   class="form-control" placeholder="you@yourfirm.com"
+                   autofocus autocomplete="email">
+        </div>
+        <div class="mb-4">
+            <label class="form-label" for="password">Password</label>
             <input type="password" id="password" name="password"
-                   class="form-control" placeholder="Enter admin password"
-                   autofocus autocomplete="current-password">
+                   class="form-control" placeholder="Enter your password"
+                   autocomplete="current-password">
         </div>
         <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-shield-lock me-1"></i>Log in
+            <i class="bi bi-box-arrow-in-right me-1"></i>Sign in
         </button>
     </form>
 

@@ -158,6 +158,21 @@ def init_db():
         )
     """)
 
+    # ── Table 8: users ───────────────────────────────────────────────────────────
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            email                TEXT    NOT NULL UNIQUE,
+            name                 TEXT    NOT NULL,
+            password_hash        TEXT    NOT NULL,
+            role                 TEXT    NOT NULL DEFAULT 'cr_member',
+            is_active            INTEGER NOT NULL DEFAULT 1,
+            must_change_password INTEGER NOT NULL DEFAULT 0,
+            created_date         TEXT    NOT NULL,
+            last_login           TEXT
+        )
+    """)
+
     conn.commit()
 
     # ── Migrations: add new columns to existing databases without losing data ──
@@ -190,8 +205,52 @@ def init_db():
     _add_column_if_missing(conn, "files", "superseded_by", "INTEGER", file_cols3)
     conn.commit()
 
+    user_cols = [row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    _add_column_if_missing(conn, "users", "is_active",            "INTEGER NOT NULL DEFAULT 1", user_cols)
+    _add_column_if_missing(conn, "users", "must_change_password", "INTEGER NOT NULL DEFAULT 0", user_cols)
+    _add_column_if_missing(conn, "users", "last_login",           "TEXT", user_cols)
+    conn.commit()
+
     conn.close()
     print("[DB] Database initialized successfully.")
+
+
+def seed_admin_from_env():
+    """
+    On first run, create an admin user from ADMIN_PASSWORD + ADMIN_EMAIL env vars.
+    Idempotent — does nothing if any active admin row already exists.
+    Called from app.py after init_db().
+    """
+    from werkzeug.security import generate_password_hash
+
+    admin_password = config.ADMIN_PASSWORD
+    admin_email    = config.ADMIN_EMAIL
+
+    if not admin_password or not admin_email:
+        return  # auth not configured or email not set
+
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM users WHERE role = 'admin' AND is_active = 1"
+    ).fetchone()
+    if existing:
+        conn.close()
+        return  # already seeded
+
+    import datetime
+    conn.execute(
+        """
+        INSERT INTO users (email, name, password_hash, role, is_active,
+                           must_change_password, created_date)
+        VALUES (?, 'Admin', ?, 'admin', 1, 0, ?)
+        """,
+        (admin_email.lower().strip(),
+         generate_password_hash(admin_password),
+         datetime.datetime.now().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+    print(f"[DB] Seeded initial admin account: {admin_email}")
 
 
 def _add_column_if_missing(conn, table, column, col_type, existing_columns):
