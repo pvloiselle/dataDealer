@@ -28,6 +28,7 @@ import datetime
 import functools
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from werkzeug.security import check_password_hash, generate_password_hash
+from extensions import limiter, csrf
 
 import config
 from modules import file_manager, permissions
@@ -84,6 +85,7 @@ def require_admin(f):
 # ── Login / Logout ─────────────────────────────────────────────────────────────
 
 @bp.route("/admin/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute; 30 per hour")
 def login():
     """Login page — used by both admins and CR members."""
     if session.get("user_role"):
@@ -101,6 +103,7 @@ def login():
 
         if user and check_password_hash(user["password_hash"], password):
             session.clear()
+            session.permanent = True  # honour PERMANENT_SESSION_LIFETIME
             session["user_id"]    = user["id"]
             session["user_email"] = user["email"]
             session["user_name"]  = user["name"]
@@ -298,6 +301,7 @@ def upload_post():
 
 @bp.route("/upload/analyze", methods=["POST"])
 @require_admin
+@csrf.exempt
 def upload_analyze():
     """AI-assisted metadata suggestion endpoint."""
     uploaded_file = request.files.get("file")
@@ -452,6 +456,7 @@ def log():
 
 @bp.route("/log/<int:request_id>/preview")
 @require_login
+@csrf.exempt
 def log_preview(request_id):
     """Return JSON preview of the sent/forwarded email for a log entry."""
     conn  = get_db()
@@ -671,6 +676,7 @@ def strategy_details():
 
 @bp.route("/strategies/permissions/add", methods=["POST"])
 @require_admin
+@csrf.exempt
 def strategies_add_permission():
     """AJAX: add a permission from the Strategy Browser info modal."""
     data       = request.get_json() or {}
@@ -692,6 +698,7 @@ def strategies_add_permission():
 
 @bp.route("/strategies/permissions/<int:perm_id>/remove", methods=["POST"])
 @require_admin
+@csrf.exempt
 def strategies_remove_permission(perm_id):
     """AJAX: remove a permission from the Strategy Browser info modal."""
     data          = request.get_json() or {}

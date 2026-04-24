@@ -12,10 +12,12 @@ Then open http://localhost:5001 in your browser.
 """
 
 import base64
+import datetime
 import os
 from flask import Flask
 
 import config
+from extensions import csrf, limiter
 from modules.database import init_db
 from modules.dashboard import bp as dashboard_blueprint
 from scheduler import init_scheduler
@@ -57,6 +59,34 @@ def create_app():
 
     # Required by Flask-APScheduler to avoid duplicate jobs in debug mode
     app.config["SCHEDULER_API_ENABLED"] = False
+
+    # CSRF — protect all forms; exempt JSON-only API endpoints individually
+    app.config["WTF_CSRF_ENABLED"] = True
+    csrf.init_app(app)
+
+    # Rate limiter — storage uses in-memory by default (fine for single-instance)
+    limiter.init_app(app)
+
+    # Sessions expire after 8 hours of inactivity
+    app.config["PERMANENT_SESSION_LIFETIME"] = datetime.timedelta(hours=8)
+
+    # ── Security headers ──────────────────────────────────────────────────────
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["X-Frame-Options"]        = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"]        = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"]     = "geolocation=(), microphone=(), camera=()"
+        # Allows Bootstrap/Google Fonts CDN plus our own origin; blocks everything else
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+            "style-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; "
+            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+            "img-src 'self' data:; "
+            "connect-src 'self';"
+        )
+        return response
 
     # ── Bootstrap credentials from env vars (Railway / cloud deploy) ─────────
     _bootstrap_credentials()

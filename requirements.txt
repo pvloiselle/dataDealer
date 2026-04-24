@@ -5,6 +5,8 @@
 # --- Web Framework ---
 flask==3.0.3                    # The web server and UI framework
 flask-apscheduler==1.13.1       # Runs the background email polling job
+flask-wtf==1.2.1                # CSRF protection for all forms
+flask-limiter==3.8.0            # Rate limiting (brute-force protection on login)
 
 # --- Database ---
 # sqlite3 is built into Python — no install needed
